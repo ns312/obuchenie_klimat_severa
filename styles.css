@@ -463,6 +463,104 @@ ul.theory-list li::before {
   color: #fef08a;
 }
 
+/* ================= UPGRADED ECONOMICS GRID ================= */
+.economics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+.econ-card {
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  transition: border-color var(--transition-normal);
+}
+
+.econ-card h4 {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.econ-card.cafe-theme {
+  border-color: rgba(245, 158, 11, 0.25);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.02) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.econ-card.cafe-theme h4 {
+  color: var(--warning);
+}
+
+.econ-card.bank-theme {
+  border-color: rgba(59, 130, 246, 0.25);
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.02) 0%, rgba(0, 0, 0, 0) 100%);
+}
+
+.econ-card.bank-theme h4 {
+  color: var(--accent-blue);
+}
+
+.econ-card ul {
+  list-style: none;
+}
+
+.econ-card ul li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 1rem;
+  position: relative;
+  padding-left: 1.25rem;
+}
+
+.econ-card ul li::before {
+  content: '⚡';
+  position: absolute;
+  left: 0;
+  font-size: 0.8rem;
+}
+
+.econ-card ul li strong {
+  color: var(--text-primary);
+}
+
+/* ================= UPGRADED OBJECTION GRID ================= */
+.objection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.25rem;
+  margin: 1.5rem 0;
+}
+
+.obj-box {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid var(--border-color);
+  padding: 1.25rem;
+  border-radius: 10px;
+}
+
+.obj-box h5 {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--accent-cyan);
+  margin-bottom: 0.5rem;
+}
+
+.obj-box p {
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+
+.obj-box p em {
+  color: var(--text-primary);
+  font-style: normal;
+  font-weight: 500;
+}
+
 /* Interactive Components */
 
 /* Matching Grid */
@@ -570,16 +668,18 @@ ul.theory-list li::before {
   font-weight: 600;
   font-size: 0.8rem;
   color: var(--accent-cyan);
+  flex-shrink: 0;
 }
 
-.client-meta h4 {
+.sim-client-meta h4 {
   font-size: 0.85rem;
   font-weight: 500;
 }
 
-.client-meta span {
+.sim-client-meta span {
   font-size: 0.7rem;
   color: var(--text-muted);
+  display: block;
 }
 
 .sim-status {
@@ -1155,20 +1255,6 @@ ul.theory-list li::before {
   background: var(--bg-secondary);
   color: var(--text-primary);
   box-shadow: var(--shadow-sm);
-}
-
-.auth-footer-note {
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-  font-size: 0.725rem;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-
-.auth-footer-note span {
-  color: var(--text-secondary);
-  font-family: monospace;
 }
 
 /* ================= ADMIN VIEW STYLING ================= */

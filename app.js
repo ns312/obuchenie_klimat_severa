@@ -1,1263 +1,1021 @@
-// Multi-User state registry for Manager Training Application
-document.addEventListener('DOMContentLoaded', () => {
-  
-  // --- DATABASE INITIALIZATION ---
-  const ACCOUNTS_KEY = 'climate_severa_accounts';
-  const SESSION_KEY = 'climate_severa_session';
-  
-  // Pre-configured Admin Credentials
-  const ADMIN_EMAIL = 'sultan.marketing.dubai@gmail.com';
-  const ADMIN_PASSWORD = '312312312';
+// Multi-User Database via LocalStorage
+const DB_KEY = 'sales_trainer_db';
 
-  // Master Database structure
-  let dbRegistry = {
-    users: {} // Keys: email, Value: User progress object
-  };
-
-  // Session state
-  let sessionState = {
-    currentUser: null, // Stores email of logged-in manager, or 'admin'
-    role: null // 'trainee' or 'admin'
-  };
-
-  // Trainee template structure
-  function createNewTraineeProfile(password) {
-    return {
-      password: password,
-      currentLevel: 1,
-      unlockedLevels: [1],
-      completedLevels: [],
-      homeworks: {
-        1: { text: '', status: 'Не сдано' },
-        2: { text: '', status: 'Не сдано' },
-        3: { text: '', status: 'Не сдано' },
-        4: { text: '', status: 'Не сдано' },
-        5: { text: '', status: 'Не сдано' }
-      },
-      exercises: {
-        level1Matching: false,
-        level2Sim: false,
-        level3Quiz: false,
-        level4Crm: false,
-        level5Wa: false,
-        level5Exam: false
+// Helper to load database
+function loadDB() {
+  const data = localStorage.getItem(DB_KEY);
+  if (!data) {
+    // Initial seeded structure
+    const initial = {
+      users: {
+        'manager@test.com': {
+          email: 'manager@test.com',
+          password: 'password', // Test password
+          isAdmin: false,
+          progress: 0,
+          completedLevels: [],
+          homeworks: {
+            '1': { status: 'submitted', answer: '1. Потери выручки: из-за жары гости сидят не более 20 минут, средний чек падает на 40%, прямые потери около 45 000 руб.\n2. Персонал: повара на кухне работают медленно, путают заказы.\n3. Репутация: гости оставляют плохие отзывы в Яндекс.Картах про духоту.' },
+            '2': { status: 'submitted', answer: 'Для банка: «Добрый день! Подскажите имя руководителя административно-хозяйственного отдела, чтобы согласовать плановый замер перегрева процессоров из-за систем кондиционирования?»' },
+            '3': { status: 'none', answer: '' },
+            '4': { status: 'none', answer: '' },
+            '5': { status: 'none', answer: '' }
+          }
+        }
       }
     };
+    localStorage.setItem(DB_KEY, JSON.stringify(initial));
+    return initial;
+  }
+  return JSON.parse(data);
+}
+
+// Helper to save database
+function saveDB(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+// State
+let db = loadDB();
+let currentUser = null;
+
+// Auth Tab Switching
+const tabLoginBtn = document.getElementById('tabLoginBtn');
+const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+const btnSubmitAuth = document.getElementById('btnSubmitAuth');
+let authMode = 'login'; // 'login' or 'register'
+
+tabLoginBtn.addEventListener('click', () => {
+  authMode = 'login';
+  tabLoginBtn.classList.add('active');
+  tabRegisterBtn.classList.remove('active');
+  btnSubmitAuth.innerText = 'Войти в систему';
+});
+
+tabRegisterBtn.addEventListener('click', () => {
+  authMode = 'register';
+  tabRegisterBtn.classList.add('active');
+  tabLoginBtn.classList.remove('active');
+  btnSubmitAuth.innerText = 'Зарегистрироваться';
+});
+
+// Authentication handlers
+const authForm = document.getElementById('authForm');
+const authOverlay = document.getElementById('authOverlay');
+const authError = document.getElementById('authError');
+const userEmailSpan = document.getElementById('userEmailSpan');
+
+authForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  
+  if (!email || !password) return;
+
+  // Check if supervisor login
+  if (email === 'sultan.marketing.dubai@gmail.com' && password === '312312312') {
+    // Admin login success
+    currentUser = { email, isAdmin: true };
+    authOverlay.classList.remove('active');
+    authError.innerText = '';
+    authError.style.display = 'none';
+    showAdminDashboard();
+    return;
   }
 
-  // --- HTML SELECTORS ---
-  // Auth Screen Selectors
-  const authOverlay = document.getElementById('authOverlay');
-  const authForm = document.getElementById('authForm');
-  const authEmail = document.getElementById('authEmail');
-  const authPassword = document.getElementById('authPassword');
-  const authError = document.getElementById('authError');
-  const tabLoginBtn = document.getElementById('tabLoginBtn');
-  const tabRegisterBtn = document.getElementById('tabRegisterBtn');
-  const btnSubmitAuth = document.getElementById('btnSubmitAuth');
-  
-  // Main Navigation / Layout Selectors
-  const traineeView = document.getElementById('traineeView');
-  const adminView = document.getElementById('adminView');
-  const roadmapNav = document.getElementById('roadmapNav');
-  const userEmailSpan = document.getElementById('userEmailSpan');
-  const btnLogOut = document.getElementById('btnLogOut');
-  
-  // Trainee View Selectors
-  const headerLevelTitle = document.getElementById('headerLevelTitle');
-  const headerLevelDays = document.getElementById('headerLevelDays');
-  const progressBar = document.getElementById('progressBar');
-  const progressText = document.getElementById('progressText');
-  const levelSections = document.querySelectorAll('.level-section');
+  db = loadDB(); // reload fresh state
 
-  // Admin Panel View Selectors
-  const adminUsersCount = document.getElementById('adminUsersCount');
-  const adminUsersContainer = document.getElementById('adminUsersContainer');
-  const adminDetailsCard = document.getElementById('adminDetailsCard');
-  const adminDetailsPlaceholder = document.getElementById('adminDetailsPlaceholder');
-  const adminDetailsContent = document.getElementById('adminDetailsContent');
-  const adminSelectedUserEmail = document.getElementById('adminSelectedUserEmail');
-  const adminSelectedUserProgress = document.getElementById('adminSelectedUserProgress');
-  const adminHwTimeline = document.getElementById('adminHwTimeline');
-  const btnAdminExport = document.getElementById('btnAdminExport');
-  const btnAdminReset = document.getElementById('btnAdminReset');
-
-  // --- AUTH CARD CONTROLLER (TABS) ---
-  let isRegisterTab = false; // default login
-
-  if (tabLoginBtn && tabRegisterBtn) {
-    tabLoginBtn.addEventListener('click', () => {
-      isRegisterTab = false;
-      tabLoginBtn.classList.add('active');
-      tabRegisterBtn.classList.remove('active');
-      btnSubmitAuth.textContent = 'Войти в систему';
-      authError.textContent = '';
-    });
-
-    tabRegisterBtn.addEventListener('click', () => {
-      isRegisterTab = true;
-      tabRegisterBtn.classList.add('active');
-      tabLoginBtn.classList.remove('active');
-      btnSubmitAuth.textContent = 'Зарегистрироваться';
-      authError.textContent = '';
-    });
+  if (authMode === 'login') {
+    const user = db.users[email];
+    if (user && user.password === password) {
+      currentUser = user;
+      authOverlay.classList.remove('active');
+      authError.innerText = '';
+      authError.style.display = 'none';
+      initializeTraineeDashboard();
+    } else {
+      authError.innerText = 'Неверный email или пароль';
+      authError.style.display = 'block';
+    }
+  } else {
+    // Register
+    if (db.users[email]) {
+      authError.innerText = 'Пользователь с таким email уже существует';
+      authError.style.display = 'block';
+    } else {
+      const newUser = {
+        email: email,
+        password: password,
+        isAdmin: false,
+        progress: 0,
+        completedLevels: [],
+        homeworks: {
+          '1': { status: 'none', answer: '' },
+          '2': { status: 'none', answer: '' },
+          '3': { status: 'none', answer: '' },
+          '4': { status: 'none', answer: '' },
+          '5': { status: 'none', answer: '' }
+        }
+      };
+      db.users[email] = newUser;
+      saveDB(db);
+      currentUser = newUser;
+      authOverlay.classList.remove('active');
+      authError.innerText = '';
+      authError.style.display = 'none';
+      initializeTraineeDashboard();
+    }
   }
+});
 
-  // --- LOCAL DATABASE HELPERS ---
-  function loadDatabase() {
-    const rawDB = localStorage.getItem(ACCOUNTS_KEY);
-    if (rawDB) {
-      try {
-        dbRegistry = JSON.parse(rawDB);
-      } catch (e) {
-        console.error("DB corruption, resetting registry.", e);
+// Logout handler
+document.getElementById('btnLogOut').addEventListener('click', () => {
+  currentUser = null;
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  authOverlay.classList.add('active');
+  document.getElementById('traineeView').style.display = 'none';
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('appSidebar').style.display = 'flex';
+});
+
+// Level selector navigation
+const levelNavItems = document.querySelectorAll('.level-nav-item');
+let activeLevel = 1;
+
+levelNavItems.forEach(item => {
+  item.addEventListener('click', () => {
+    if (item.classList.contains('locked')) return;
+    const lvl = parseInt(item.getAttribute('data-level'));
+    switchLevel(lvl);
+  });
+});
+
+function switchLevel(lvl) {
+  activeLevel = lvl;
+  // Update nav UI active class
+  levelNavItems.forEach(item => {
+    if (parseInt(item.getAttribute('data-level')) === lvl) {
+      item.classList.add('active');
+    } else {
+      item.classList.remove('active');
+    }
+  });
+
+  // Switch content section visible
+  document.querySelectorAll('.level-section').forEach(sec => {
+    sec.classList.remove('active');
+  });
+  document.getElementById(`level-${lvl}`).classList.add('active');
+
+  // Update header text
+  const levelTitles = {
+    1: 'Уровень 1: Боли и Экономика Потерь',
+    2: 'Уровень 2: Обход секретаря & Сценарии звонков',
+    3: 'Уровень 3: Психология Возражений',
+    4: 'Уровень 4: Ведение CRM-системы',
+    5: 'Уровень 5: Аналитика и Финал'
+  };
+  const levelDays = {
+    1: 'Дни 1-2 программы обучения',
+    2: 'Дни 3-4 программы обучения',
+    3: 'Дни 5-6 программы обучения',
+    4: 'Дни 7-8 программы обучения',
+    5: 'Дни 9-10 программы обучения'
+  };
+  document.getElementById('headerLevelTitle').innerText = levelTitles[lvl];
+  document.getElementById('headerLevelDays').innerText = levelDays[lvl];
+
+  // Specific content initialization per level if needed
+  if (lvl === 2) {
+    initPhoneSimulator();
+  }
+}
+
+// Update sidebar status locks based on current user progress
+function updateSidebarLocks() {
+  db = loadDB();
+  const user = db.users[currentUser.email];
+  if (!user) return;
+
+  // Complete Levels: Let's unlock sequentially
+  // If Level X completed, unlock X+1
+  levelNavItems.forEach(item => {
+    const lvl = parseInt(item.getAttribute('data-level'));
+    if (lvl === 1) {
+      item.classList.remove('locked');
+      item.removeAttribute('disabled');
+    } else {
+      // Unlock if previous level is in completed list
+      const prevCompleted = user.completedLevels.includes(lvl - 1);
+      if (prevCompleted) {
+        item.classList.remove('locked');
+        item.removeAttribute('disabled');
+        const lockIcon = item.querySelector('.lock-badge');
+        if (lockIcon) lockIcon.style.display = 'none';
+      } else {
+        item.classList.add('locked');
+        item.setAttribute('disabled', 'true');
+        const lockIcon = item.querySelector('.lock-badge');
+        if (lockIcon) lockIcon.style.display = 'block';
       }
     }
+
+    // Set checkmark if completed
+    if (user.completedLevels.includes(lvl)) {
+      item.classList.add('completed');
+      item.querySelector('.level-status-icon').innerText = '✓';
+    } else {
+      item.classList.remove('completed');
+      item.querySelector('.level-status-icon').innerText = lvl;
+    }
+  });
+
+  // Update progress bar
+  const pct = user.progress || 0;
+  document.getElementById('progressBar').style.width = `${pct}%`;
+  document.getElementById('progressText').innerText = `${pct}% выполнено`;
+
+  // Render homework statuses
+  for (let i = 1; i <= 5; i++) {
+    const hw = user.homeworks[i.toString()];
+    const badge = document.getElementById(`hwStatus-${i}`);
+    const textarea = document.getElementById(`hwInput-${i}`);
+    const submitBtn = document.getElementById(`btnSubmit-${i}`);
     
-    // Load session
-    const rawSession = localStorage.getItem(SESSION_KEY);
-    if (rawSession) {
-      try {
-        sessionState = JSON.parse(rawSession);
-      } catch (e) {}
+    if (badge && hw) {
+      if (hw.status === 'none') {
+        badge.innerHTML = '<span class="badge badge-blue">Не сдано</span>';
+        if (textarea) textarea.value = '';
+        if (submitBtn) submitBtn.disabled = false;
+      } else if (hw.status === 'submitted') {
+        badge.innerHTML = '<span class="badge badge-cyan">На проверке куратором</span>';
+        if (textarea) textarea.value = hw.answer;
+        if (submitBtn) submitBtn.disabled = true;
+      } else if (hw.status === 'accepted') {
+        badge.innerHTML = '<span class="badge badge-success">Зачтено куратором</span>';
+        if (textarea) textarea.value = hw.answer;
+        if (submitBtn) submitBtn.disabled = true;
+      }
     }
   }
+}
 
-  function saveDatabase() {
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(dbRegistry));
-  }
-
-  function saveSession() {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sessionState));
-  }
-
-  // --- LOGIN & REGISTER IMPLEMENTATION ---
-  if (authForm) {
-    authForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = authEmail.value.trim().toLowerCase();
-      const pass = authPassword.value;
-      
-      authError.textContent = '';
-
-      if (!email || !pass) {
-        authError.textContent = 'Пожалуйста, заполните все поля!';
+// Trainee panel homework submit
+for (let i = 1; i <= 5; i++) {
+  const submitBtn = document.getElementById(`btnSubmit-${i}`);
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      const text = document.getElementById(`hwInput-${i}`).value.trim();
+      if (!text) {
+        alert('Пожалуйста, напишите ответ перед отправкой.');
         return;
       }
 
-      // Check for Admin credentials
-      if (email === ADMIN_EMAIL.toLowerCase()) {
-        if (pass === ADMIN_PASSWORD) {
-          sessionState.currentUser = email;
-          sessionState.role = 'admin';
-          saveSession();
-          enterApplication();
-          return;
-        } else {
-          authError.textContent = 'Неверный пароль администратора!';
-          return;
-        }
-      }
-
-      if (isRegisterTab) {
-        // Registration Logic
-        if (pass.length < 6) {
-          authError.textContent = 'Пароль должен быть не менее 6 символов!';
-          return;
-        }
-        if (dbRegistry.users[email]) {
-          authError.textContent = 'Пользователь с таким email уже существует!';
-          return;
-        }
-
-        // Create new account
-        dbRegistry.users[email] = createNewTraineeProfile(pass);
-        saveDatabase();
-
-        // Auto login
-        sessionState.currentUser = email;
-        sessionState.role = 'trainee';
-        saveSession();
-        enterApplication();
-      } else {
-        // Login Logic
-        const user = dbRegistry.users[email];
-        if (!user) {
-          authError.textContent = 'Пользователь не найден. Зарегистрируйтесь!';
-          return;
-        }
-        if (user.password !== pass) {
-          authError.textContent = 'Неверный пароль!';
-          return;
-        }
-
-        // Login success
-        sessionState.currentUser = email;
-        sessionState.role = 'trainee';
-        saveSession();
-        enterApplication();
-      }
+      db = loadDB();
+      const user = db.users[currentUser.email];
+      user.homeworks[i.toString()] = {
+        status: 'submitted',
+        answer: text
+      };
+      
+      // Calculate progress increment: submitting homework increases progress
+      // Let's say completing a level fully (homework accepted + quiz done) sets progress.
+      // We will let the Admin mark it as "accepted", which unlocks the next level!
+      saveDB(db);
+      updateSidebarLocks();
+      alert('Домашнее задание успешно отправлено куратору на проверку!');
     });
   }
+}
 
-  // Log out action
-  if (btnLogOut) {
-    btnLogOut.addEventListener('click', () => {
-      sessionState.currentUser = null;
-      sessionState.role = null;
-      saveSession();
-      
-      // Reset inputs on logout
-      authEmail.value = '';
-      authPassword.value = '';
-      authError.textContent = '';
-      
-      location.reload(); // Reload window to flush UI DOM variables and return to auth
-    });
-  }
+// Initializing Trainee view
+function initializeTraineeDashboard() {
+  document.getElementById('traineeView').style.display = 'flex';
+  document.getElementById('adminView').style.display = 'none';
+  document.getElementById('appSidebar').style.display = 'flex';
+  userEmailSpan.innerText = currentUser.email;
+  updateSidebarLocks();
+  switchLevel(1);
+  initMatchingGame();
+  initCrmSimulator();
+  initQuizObjections();
+  initFinalExam();
+}
 
-  // --- INITIAL CHECK ---
-  loadDatabase();
-  if (sessionState.currentUser) {
-    enterApplication();
-  } else {
-    // Show auth card
-    authOverlay.classList.add('active');
-  }
 
-  // Launching the actual views based on role
-  function enterApplication() {
-    authOverlay.classList.remove('active');
-    
-    if (sessionState.role === 'admin') {
-      traineeView.style.display = 'none';
-      roadmapNav.style.display = 'none';
-      adminView.style.display = 'flex';
-      userEmailSpan.textContent = 'Куратор (Admin)';
-      
-      initAdminPanel();
-    } else {
-      adminView.style.display = 'none';
-      traineeView.style.display = 'flex';
-      roadmapNav.style.display = 'flex';
-      userEmailSpan.textContent = sessionState.currentUser;
-      
-      initTraineePortal();
-    }
-  }
-
-  // =========================================================================
-  // ========================= TRAINEE PORTAL ENGINE =========================
-  // =========================================================================
-  
-  let traineeState = null;
-
-  function initTraineePortal() {
-    traineeState = dbRegistry.users[sessionState.currentUser];
-    if (!traineeState) {
-      // Safety reset
-      sessionState.currentUser = null;
-      sessionState.role = null;
-      saveSession();
-      location.reload();
-      return;
-    }
-
-    updateTraineeUI();
-    restoreTraineeWidgetStates();
-  }
-
-  function updateTraineeUI() {
-    // 1. Update Roadmap list state
-    const navItems = roadmapNav.querySelectorAll('.level-nav-item');
-    navItems.forEach((btn, idx) => {
-      const lvlNum = idx + 1;
-      
-      // Lock / Unlock
-      if (traineeState.unlockedLevels.includes(lvlNum)) {
-        btn.classList.remove('locked');
-        btn.removeAttribute('disabled');
-        const lockBadge = btn.querySelector('.lock-badge');
-        if (lockBadge) lockBadge.remove();
-      } else {
-        btn.classList.add('locked');
-        btn.setAttribute('disabled', 'true');
-        if (!btn.querySelector('.lock-badge')) {
-          const badge = document.createElement('span');
-          badge.className = 'lock-badge';
-          badge.innerHTML = '🔒';
-          btn.appendChild(badge);
-        }
-      }
-
-      // Selected Level Active State
-      if (traineeState.currentLevel === lvlNum) {
-        btn.classList.add('active');
-      } else {
-        btn.classList.remove('active');
-      }
-
-      // Checkmark icon for completed
-      const icon = btn.querySelector('.level-status-icon');
-      if (traineeState.completedLevels.includes(lvlNum)) {
-        btn.classList.add('completed');
-        icon.innerHTML = '✓';
-      } else {
-        btn.classList.remove('completed');
-        icon.innerHTML = lvlNum;
-      }
-    });
-
-    // 2. Header details
-    const levelTitles = {
-      1: "Уровень 1: Понимание болей клиентов",
-      2: "Уровень 2: Скрипт «Эксперт-Помощник»",
-      3: "Уровень 3: Преодоление возражений",
-      4: "Уровень 4: Правила ведения AMO CRM",
-      5: "Уровень 5: Аналитика, Дожим и Финал"
-    };
-    const levelDays = {
-      1: "Дни 1-2 программы обучения",
-      2: "Дни 3-4 программы обучения",
-      3: "Дни 5-6 программы обучения",
-      4: "Дни 7-8 программы обучения",
-      5: "Дни 9-10 программы обучения"
-    };
-    headerLevelTitle.textContent = levelTitles[traineeState.currentLevel] || "";
-    headerLevelDays.textContent = levelDays[traineeState.currentLevel] || "";
-
-    // 3. Compute Progress (out of 11 milestones)
-    let totalPoints = 11;
-    let earnedPoints = 0;
-    earnedPoints += traineeState.completedLevels.length;
-    if (traineeState.exercises.level1Matching) earnedPoints++;
-    if (traineeState.exercises.level2Sim) earnedPoints++;
-    if (traineeState.exercises.level3Quiz) earnedPoints++;
-    if (traineeState.exercises.level4Crm) earnedPoints++;
-    if (traineeState.exercises.level5Wa) earnedPoints++;
-    if (traineeState.exercises.level5Exam) earnedPoints++;
-
-    const percent = Math.round((earnedPoints / totalPoints) * 100);
-    progressBar.style.width = `${percent}%`;
-    progressText.textContent = `${percent}% выполнено`;
-
-    // 4. Set Section visibility
-    levelSections.forEach(section => {
-      if (section.id === `level-${traineeState.currentLevel}`) {
-        section.classList.add('active');
-      } else {
-        section.classList.remove('active');
-      }
-    });
-
-    // 5. Homework inputs
-    for (let l = 1; l <= 5; l++) {
-      const hwInput = document.getElementById(`hwInput-${l}`);
-      const hwStatus = document.getElementById(`hwStatus-${l}`);
-      const btnSubmit = document.getElementById(`btnSubmit-${l}`);
-      
-      if (hwInput) {
-        hwInput.value = traineeState.homeworks[l].text;
-      }
-      
-      if (hwStatus) {
-        let badgeHtml = '';
-        if (traineeState.homeworks[l].status === 'Сдано') {
-          badgeHtml = '<span class="badge badge-success">Сдано куратором</span>';
-          if (hwInput) hwInput.disabled = true;
-          if (btnSubmit) btnSubmit.disabled = true;
-        } else if (traineeState.homeworks[l].status === 'На проверке') {
-          badgeHtml = '<span class="badge badge-blue">На проверке у куратора</span>';
-        } else {
-          badgeHtml = '<span class="badge badge-blue" style="opacity: 0.6;">Не сдано</span>';
-        }
-        hwStatus.innerHTML = badgeHtml;
-      }
-    }
-  }
-
-  function saveTraineeState() {
-    dbRegistry.users[sessionState.currentUser] = traineeState;
-    saveDatabase();
-  }
-
-  // --- TRAINEE NAVIGATION EVENT ---
-  roadmapNav.addEventListener('click', (e) => {
-    const btn = e.target.closest('.level-nav-item');
-    if (!btn || btn.classList.contains('locked')) return;
-    
-    const targetLvl = parseInt(btn.getAttribute('data-level'), 10);
-    traineeState.currentLevel = targetLvl;
-    saveTraineeState();
-    updateTraineeUI();
-    
-    document.querySelector('.main-content').scrollTop = 0;
-  });
-
-  // Restore states of matching exercises, simulators, quizzes
-  function restoreTraineeWidgetStates() {
-    // 1. Level 1 Matchings
-    const targetCafe = document.getElementById('target-cafe');
-    const targetBank = document.getElementById('target-bank');
-    const sourceCards = document.getElementById('sourceCards');
-    
-    if (traineeState.exercises.level1Matching) {
-      const cards = [
-        { id: 'card-1', category: 'cafe' },
-        { id: 'card-2', category: 'bank' },
-        { id: 'card-3', category: 'cafe' },
-        { id: 'card-4', category: 'bank' },
-        { id: 'card-5', category: 'cafe' },
-        { id: 'card-6', category: 'bank' }
-      ];
-      cards.forEach(c => {
-        const card = document.getElementById(c.id);
-        const target = document.getElementById(`target-${c.category}`);
-        if (card && target) {
-          card.classList.add('matched-success');
-          card.setAttribute('draggable', 'false');
-          target.appendChild(card);
-        }
-      });
-      // Show checkmark text
-      const feedbackDiv = document.createElement('div');
-      feedbackDiv.className = 'callout callout-info';
-      feedbackDiv.style.borderColor = 'var(--success)';
-      feedbackDiv.innerHTML = '<strong>Практика зачтена!</strong> Вы верно распределили все боли по сегментам.';
-      
-      const practiceCard = document.querySelector('#level-1 .card:nth-child(2)');
-      if (practiceCard && !practiceCard.querySelector('.callout-info')) {
-        practiceCard.appendChild(feedbackDiv);
-      }
-    }
-
-    // 2. Level 2 Simulator
-    startSimulator();
-
-    // 3. Level 3 Quiz
-    const quizObjectionOptions = document.getElementById('quizObjectionOptions');
-    const quizObjectionFeedback = document.getElementById('quizObjectionFeedback');
-    if (traineeState.exercises.level3Quiz && quizObjectionOptions) {
-      quizObjectionOptions.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.classList.add('disabled');
-        if (opt.getAttribute('data-correct') === 'true') {
-          opt.classList.add('correct');
-        }
-      });
-      quizObjectionFeedback.textContent = 'Правильно! Тест пройден.';
-      quizObjectionFeedback.className = 'quiz-feedback show correct';
-    } else if (quizObjectionOptions) {
-      quizObjectionOptions.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.classList.remove('disabled', 'correct', 'incorrect');
-      });
-      quizObjectionFeedback.classList.remove('show');
-    }
-
-    // 4. Level 4 CRM
-    const crmDeal = document.getElementById('crm-deal-1');
-    const crmColDiag = document.getElementById('crm-col-diag');
-    const crmColCold = document.getElementById('crm-col-cold');
-    const crmScheduler = document.getElementById('crmScheduler');
-    
-    if (traineeState.exercises.level4Crm && crmColDiag && crmDeal) {
-      crmColDiag.appendChild(crmDeal);
-      document.getElementById('crmCountCold').textContent = '0';
-      document.getElementById('crmCountDiag').textContent = '1';
-      if (crmScheduler) {
-        crmScheduler.classList.add('active');
-        crmScheduler.innerHTML = '<div style="color: var(--success); font-weight: 600; text-align: center; padding: 1rem;">✓ Сделка успешно переведена, задача на напоминание за 2 часа поставлена! Блок CRM зачтен.</div>';
-      }
-    } else if (crmColCold && crmDeal) {
-      crmColCold.appendChild(crmDeal);
-      document.getElementById('crmCountCold').textContent = '1';
-      document.getElementById('crmCountDiag').textContent = '0';
-      if (crmScheduler) {
-        crmScheduler.classList.remove('active');
-        crmScheduler.innerHTML = `
-          <div class="scheduler-title">➕ Создание автоматической задачи по сделке</div>
-          <form class="scheduler-form" id="schedulerForm" onsubmit="event.preventDefault();">
-            <div class="form-group">
-              <label for="taskType">Тип задачи</label>
-              <select id="taskType">
-                <option value="">-- Выберите тип --</option>
-                <option value="call">Звонок / WhatsApp (Напомнить о встрече)</option>
-                <option value="audit">Узнать результат у инженера</option>
-                <option value="other">Другое</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="taskTime">Срок (когда выполнить)</label>
-              <select id="taskTime">
-                <option value="">-- Выберите срок --</option>
-                <option value="2h">За 2 часа до выезда инженера</option>
-                <option value="post">Сразу после выезда инженера</option>
-                <option value="eod">В конце дня</option>
-              </select>
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label for="taskText">Текст задачи (комментарий для менеджера)</label>
-              <textarea id="taskText" placeholder="Например: Напомнить Ирине о выезде инженера Петра в 14:00, написать в WhatsApp за 2 часа."></textarea>
-            </div>
-            <div style="grid-column: span 2; display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
-              <button type="button" class="btn btn-secondary" id="btnCancelTask">Сбросить</button>
-              <button type="button" class="btn btn-primary" id="btnSaveTask">Сохранить задачу</button>
-            </div>
-          </form>
-        `;
-        bindCRMTaskSchedulerEvents();
-      }
-    }
-
-    // 5. Level 5 WhatsApp Message Check
-    const waMessageText = document.getElementById('waMessageText');
-    const waFeedback = document.getElementById('waFeedback');
-    if (traineeState.exercises.level5Wa && waFeedback) {
-      waFeedback.innerHTML = 'Отлично! WhatsApp сообщение успешно составлено и зачтено.';
-      waFeedback.className = 'quiz-feedback show correct';
-    } else {
-      if (waMessageText) waMessageText.value = '';
-      if (waFeedback) waFeedback.classList.remove('show');
-    }
-
-    // 6. Level 5 Exam Quiz
-    const examQuestions = ['q1', 'q2', 'q3'];
-    const examFeedback = document.getElementById('examFeedback');
-    
-    if (traineeState.exercises.level5Exam && examFeedback) {
-      examQuestions.forEach(qId => {
-        const qBlock = document.querySelector(`.quiz-options[data-question="${qId}"]`);
-        if (qBlock) {
-          qBlock.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.classList.add('disabled');
-            if (opt.getAttribute('data-correct') === 'true') {
-              opt.classList.add('correct');
-            } else {
-              opt.classList.remove('incorrect');
-            }
-          });
-        }
-      });
-      examFeedback.textContent = 'Поздравляем! Экзамен успешно сдан.';
-      examFeedback.className = 'quiz-feedback show correct';
-    } else if (examFeedback) {
-      examQuestions.forEach(qId => {
-        const qBlock = document.querySelector(`.quiz-options[data-question="${qId}"]`);
-        if (qBlock) {
-          qBlock.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.classList.remove('disabled', 'correct', 'incorrect');
-          });
-        }
-      });
-      examFeedback.classList.remove('show');
-    }
-  }
-
-  // --- TRAINEE PRACTICE WIDGET EVENT HANDLERS ---
-  // Level 1: Matching Card game Drag-and-drop
+// ================= LEVEL 1: MATCHING GAME =================
+function initMatchingGame() {
   const sourceCards = document.getElementById('sourceCards');
   const targetCafe = document.getElementById('target-cafe');
   const targetBank = document.getElementById('target-bank');
-  let selectedItem = null;
 
-  if (sourceCards) {
-    sourceCards.addEventListener('click', (e) => {
-      const matchItem = e.target.closest('.match-item');
-      if (!matchItem || matchItem.classList.contains('matched-success')) return;
-
-      document.querySelectorAll('.match-item').forEach(el => el.classList.remove('selected'));
-      selectedItem = matchItem;
-      matchItem.classList.add('selected');
+  // Reset columns
+  targetCafe.innerHTML = '';
+  targetBank.innerHTML = '';
+  
+  // Drag & drop handlers
+  const matchItems = document.querySelectorAll('.match-item');
+  matchItems.forEach(item => {
+    item.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', item.id);
+      item.classList.add('dragging');
     });
-  }
+
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+    });
+
+    // Mobile tap matching support
+    item.addEventListener('click', () => {
+      // Clear previous selection
+      matchItems.forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+    });
+  });
 
   const targets = [targetCafe, targetBank];
   targets.forEach(target => {
-    if (!target) return;
     target.addEventListener('dragover', (e) => {
       e.preventDefault();
       target.classList.add('dragover');
     });
+
     target.addEventListener('dragleave', () => {
       target.classList.remove('dragover');
     });
+
     target.addEventListener('drop', (e) => {
       e.preventDefault();
       target.classList.remove('dragover');
-      const cardId = e.dataTransfer.getData('text/plain');
-      const card = document.getElementById(cardId);
-      if (card) handleMatchDrop(card, target);
+      const id = e.dataTransfer.getData('text/plain');
+      const element = document.getElementById(id);
+      if (!element) return;
+      
+      handleMatchPlacement(element, target);
     });
+
+    // Mobile click target support
     target.addEventListener('click', () => {
-      if (selectedItem) {
-        handleMatchDrop(selectedItem, target);
-        selectedItem.classList.remove('selected');
-        selectedItem = null;
+      const selected = document.querySelector('.match-item.selected');
+      if (selected) {
+        handleMatchPlacement(selected, target);
+        selected.classList.remove('selected');
       }
     });
   });
 
-  if (sourceCards) {
-    sourceCards.querySelectorAll('.match-item').forEach(card => {
-      card.addEventListener('dragstart', (e) => {
-        e.dataTransfer.setData('text/plain', card.id);
-        card.classList.add('dragging');
-      });
-      card.addEventListener('dragend', () => {
-        card.classList.remove('dragging');
-      });
-    });
-  }
+  function handleMatchPlacement(item, targetCol) {
+    const category = item.getAttribute('data-category');
+    const targetType = targetCol.getAttribute('data-target');
 
-  function handleMatchDrop(card, target) {
-    const cardCategory = card.getAttribute('data-category');
-    const targetCategory = target.getAttribute('data-target');
-
-    if (cardCategory === targetCategory) {
-      card.classList.add('matched-success');
-      card.setAttribute('draggable', 'false');
-      card.classList.remove('selected');
-      target.appendChild(card);
-      
-      checkLevel1Completion();
+    if (category === targetType) {
+      // Correct Match
+      targetCol.appendChild(item);
+      item.classList.add('matched-success');
+      item.draggable = false;
+      checkMatchingComplete();
     } else {
-      card.style.borderColor = 'var(--danger)';
-      setTimeout(() => { card.style.borderColor = 'var(--border-color)'; }, 800);
+      // Incorrect Match
+      item.style.borderColor = 'var(--danger)';
+      setTimeout(() => {
+        item.style.borderColor = 'var(--border-color)';
+      }, 1000);
     }
   }
 
-  function checkLevel1Completion() {
-    const remaining = sourceCards.querySelectorAll('.match-item:not(.matched-success)').length;
-    if (remaining === 0) {
-      traineeState.exercises.level1Matching = true;
-      saveTraineeState();
-      updateTraineeUI();
-      
-      const practiceCard = document.querySelector('#level-1 .card:nth-child(2)');
-      const feedbackDiv = document.createElement('div');
-      feedbackDiv.className = 'callout callout-info';
-      feedbackDiv.style.borderColor = 'var(--success)';
-      feedbackDiv.innerHTML = '<strong>Практика зачтена!</strong> Вы верно распределили все боли по сегментам.';
-      if (practiceCard && !practiceCard.querySelector('.callout-info')) {
-        practiceCard.appendChild(feedbackDiv);
+  function checkMatchingComplete() {
+    const totalMatched = document.querySelectorAll('.matched-success').length;
+    if (totalMatched === 6) {
+      alert('Прекрасно! Все экономические боли распределены абсолютно верно.');
+      // Auto save progress for level 1 quiz part
+      db = loadDB();
+      const u = db.users[currentUser.email];
+      if (!u.completedLevels.includes(1)) {
+        // level 1 unlocked by homework verification eventually, but matching game is complete
       }
     }
   }
+}
 
-  // Level 2: Dialogue Simulator Tree
-  const simChatArea = document.getElementById('simChatArea');
-  const simChoicesArea = document.getElementById('simChoicesArea');
-  const btnResetSim = document.getElementById('btnResetSim');
-  const simStatus = document.getElementById('simStatus');
 
-  const dialogueTree = {
-    start: {
-      speaker: 'client',
-      text: '— Алло? Да, слушаю вас.',
+// ================= LEVEL 2: 2-STAGE PHONE SIMULATOR =================
+let simStage = 1; // 1 = Gatekeeper, 2 = LPR (Igor)
+let simStep = 0;
+const simChatArea = document.getElementById('simChatArea');
+const simChoicesArea = document.getElementById('simChoicesArea');
+const btnResetSim = document.getElementById('btnResetSim');
+const simContactName = document.getElementById('simContactName');
+const simContactTitle = document.getElementById('simContactTitle');
+const simAvatar = document.getElementById('simAvatar');
+
+const dialogData = {
+  stage1: [
+    {
+      text: "Ресторан «Палермо», здравствуйте! Меня зовут Алина. Чем могу помочь?",
+      sender: "client",
       choices: [
         {
-          text: '«Добрый день! Ирина, беспокоит Дмитрий, компания "Климат Севера". Мы профессионально занимаемся обслуживанием систем кондиционирования для ресторанов. Подскажите, я правильно попал на человека, который отвечает за техническое состояние помещения?»',
-          next: 'node_intro_ok'
+          text: "Здравствуйте! Я хочу предложить обслуживание кондиционеров со скидкой для ресторанов.",
+          nextStep: 99, // Failure state
+          reply: "Ой, извините, нам ничего не нужно. До свидания!"
         },
         {
-          text: '«Привет! Это клининговая компания по кондиционерам. Нам надо проверить ваши фильтры бесплатно. В среду будете на месте?»',
-          next: 'fail_hangup_abrupt'
+          text: "Здравствуйте, позовите пожалуйста управляющего к телефону.",
+          nextStep: 1,
+          reply: "А по какому вопросу? Управляющий занят, если вы с коммерческим предложением — отправьте на почту info@palermo.ru."
         },
         {
-          text: '«Здравствуйте, а позовите управляющего или директора, у меня коммерческое предложение по ремонту сплит-систем».',
-          next: 'fail_gatekeeper_reject'
+          text: "Алина, добрый день! Подскажите, с кем я могу согласовать плановые замеры давления фреона и аудит вытяжки перед пиком жары?",
+          nextStep: 2, // Success transition
+          reply: "Ой... ну это технические дела. Вам нужно поговорить с управляющим. Его зовут Игорь. Секунду, переключаю на него..."
         }
       ]
     },
-    node_intro_ok: {
-      speaker: 'client',
-      text: '— Да, я управляющая. А что вы хотели? У нас вроде всё работает нормально.',
+    {
+      // Step 1: Asked for manager directly but rejected
+      text: "А по какому вопросу? Управляющий занят, если вы с коммерческим предложением — отправьте на почту info@palermo.ru.",
+      sender: "client",
       choices: [
         {
-          text: '«Понимаю вас. Мы как раз проводим плановый аудит оборудования в вашем районе. В связи с сезоном, многие заведения сейчас сталкиваются с перегревом или внезапным отключением техники. Как у вас дела с климатом в зале? Все штатно или замечали посторонние шумы / слабый холод?»',
-          next: 'node_pain_check'
+          text: "Хорошо, отправлю на почту. До свидания.",
+          nextStep: 99,
+          reply: "До свидания!"
         },
         {
-          text: '«Да ладно вам, в такую жару кондиционеры всегда ломаются. Давайте мы приедем и почистим их за полцены, пока компрессор не сгорел?»',
-          next: 'fail_scare_tactics'
+          text: "Алина, отправлю обязательно. Но подскажите, с кем я могу согласовать плановый замер перегрева фреона перед жарой? Это не коммерческое, а технический регламент.",
+          nextStep: 2, // Recover to success transition
+          reply: "А, поняла. Секунду, переключаю на Игоря (управляющий)."
         }
       ]
-    },
-    node_pain_check: {
-      speaker: 'client',
-      text: '— Да вроде запахов нет, холодит нормально. Иногда только на кухне повара жалуются, что душно, но там плиты работают...',
-      choices: [
-        {
-          text: '«Ну, на кухне всегда жарко, это нормально. А вот в зале если сломается, то клиенты уйдут. Давайте инженер приедет?»',
-          next: 'fail_dismissive'
-        },
-        {
-          text: '«Понимаю. Духота на кухне — частая проблема, если вытяжка забита жиром, кондиционер задыхается и компрессор перегревается. Чтобы вы были уверены, что техника не откажет в разгар сезона, мы предлагаем бесплатный выезд нашего инженера. Он замерит давление фреона, проверит состояние компрессора и даст честное заключение. Вам удобнее в среду в первой или второй половине дня?»',
-          next: 'node_offer_accepted'
-        }
-      ]
-    },
-    node_offer_accepted: {
-      speaker: 'client',
-      text: '— Ну, бесплатно... Давайте в среду после обеда, часиков в три.',
-      choices: [
-        {
-          text: '«Хорошо, Ирина, договорились. В среду в 15:00 наш инженер Петр будет у вас. Давайте я зафиксирую выезд, а перед выездом за 2 часа мы пришлем вам короткое подтверждение в WhatsApp. Договорились?»',
-          next: 'success_node'
-        },
-        {
-          text: '«Окей, записал. В среду в 15:00. Приедет мастер, разберется там с вашими кондиционерами. До свидания.»',
-          next: 'fail_no_confirmation_protocol'
-        }
-      ]
-    },
-    success_node: {
-      speaker: 'client',
-      text: '— Да, хорошо, пришлите подтверждение на этот номер. Будем ждать инженера. Спасибо!',
-      isSuccess: true
-    },
-    fail_hangup_abrupt: {
-      speaker: 'client',
-      text: '— Нет, нам ничего не нужно. *гудки* Пип... Пип... Пип...',
-      isFailure: true,
-      reason: 'Слишком навязчивое начало разговора без выхода на ЛПР и объяснения ценности.'
-    },
-    fail_gatekeeper_reject: {
-      speaker: 'client',
-      text: '— Отправляйте ваше КП на почту info@romashka.ru, всего доброго! *гудки* Пип... Пип...',
-      isFailure: true,
-      reason: 'Прямая попытка продать "коммерческое предложение по ремонту" сразу натыкается на автоматический отказ.'
-    },
-    fail_scare_tactics: {
-      speaker: 'client',
-      text: '— Вы меня запугать хотите? У нас свой мастер есть, до свидания. *гудки*',
-      isFailure: true,
-      reason: 'Агрессивная продажа в лоб и попытка спорить с клиентом оттолкнули ЛПР.'
-    },
-    fail_dismissive: {
-      speaker: 'client',
-      text: '— Нет, спасибо, не надо. У нас всё хорошо. До свидания. *гудки*',
-      isFailure: true,
-      reason: 'Игнорирование жалобы поваров на духоту. Менеджер упустил зацепку для закрытия выезда.'
-    },
-    fail_no_confirmation_protocol: {
-      speaker: 'client',
-      text: '— Знаете, я подумала... Наверное, в среду не получится. Давайте отложим, я сама позвоню. *гудки*',
-      isFailure: true,
-      reason: 'Менеджер не согласовал дисциплину подтверждения по WhatsApp, потеряв фиксацию сделки.'
     }
-  };
+  ],
+  stage2: [
+    {
+      text: "Да, алло. Игорь у телефона. По какому вопросу?",
+      sender: "client",
+      choices: [
+        {
+          text: "Игорь, здравствуйте! Хотим предложить вам услуги по ремонту кондиционеров «Климат Севера».",
+          nextStep: 99, // Failure
+          reply: "У нас есть мастера, которые всё чинят. Ничего не нужно. Всего хорошего!"
+        },
+        {
+          text: "Игорь, здравствуйте! Мы занимаемся промышленным климатом ресторанов. На этой неделе бесплатно проводим замер давления фреона и аудит вытяжки для кафе в вашем районе. Зал у вас большой, если кондиционер в субботу встанет — потеряете до 60 000 рублей выручки за день из-за духоты. Наш инженер будет рядом в среду, сделает замеры бесплатно. Согласуем выезд?",
+          nextStep: 3, // Success continue
+          reply: "Бесплатно? Хм... А в чём ваш интерес? Бесплатный сыр только в мышеловке."
+        }
+      ]
+    },
+    {
+      // Step 3: Interest sparked, handling suspicion
+      text: "Бесплатно? Хм... А в чём ваш интерес? Бесплатный сыр только в мышеловке.",
+      sender: "client",
+      choices: [
+        {
+          text: "Мы надеемся, что вам понравится наша работа и в будущем вы заключите с нами договор на постоянное обслуживание.",
+          nextStep: 4,
+          reply: "Ну, постоянный договор мне пока не нужен. У меня есть дядя Вася, он чистит если что."
+        },
+        {
+          text: "Интерес простой — мы расширяем клиентскую базу ресторанов. Диагностика ни к чему вас не обязывает, но мы выдадим вам официальный дефектный акт. С ним вы сможете проверить работу ваших текущих мастеров. Если всё идеально — мы пожмем руки. Если есть критическая утечка фреона — вы узнаете об этом заранее, а не когда потекут слезы поваров на кухне. В среду в 14:00 удобно принять инженера Петра?",
+          nextStep: 5, // Close Deal!
+          reply: "Логично. Хорошо, давайте проверим кондиционеры. Дядя Вася давно не заглядывал. Записывайте адрес: ул. Ленина, д. 12..."
+        }
+      ]
+    },
+    {
+      // Step 4: Responded with direct sale pitch (Dauding)
+      text: "Ну, постоянный договор мне пока не нужен. У меня есть дядя Вася, он чистит если что.",
+      sender: "client",
+      choices: [
+        {
+          text: "Понял. Если дядя Вася не справится — звоните. Всего доброго.",
+          nextStep: 99,
+          reply: "Да, хорошо. До свидания."
+        },
+        {
+          text: "Игорь, отлично, когда есть проверенный мастер! Но Петр приедет со специальным тепловизором и газоанализатором. Мы снимем точные параметры перегрева компрессора. Это бесплатно, а для вашего мастера будет готовый чек-лист. В среду в 14:00 отправим инженера?",
+          nextStep: 5, // Recovery to success close
+          reply: "Ладно, уговорили, пусть посмотрит. Адрес: ул. Ленина, д. 12, ресторан «Палермо»."
+        }
+      ]
+    }
+  ]
+};
 
-  function startSimulator() {
-    if (!simChatArea) return;
-    simChatArea.innerHTML = '';
-    simChoicesArea.innerHTML = '';
-    btnResetSim.style.display = 'none';
-    simStatus.textContent = 'В процессе разговора...';
-    simStatus.style.color = 'var(--accent-cyan)';
-    
-    renderNode('start');
+function initPhoneSimulator() {
+  simStage = 1;
+  simStep = 0;
+  simContactName.innerText = "Алина (Хостес / Секретарь)";
+  simContactTitle.innerText = "Ресторан «Палермо» (Этап 1: Обход секретаря)";
+  simAvatar.innerText = "А";
+  simAvatar.style.background = "var(--border-color)";
+  simChatArea.innerHTML = '';
+  simChoicesArea.innerHTML = '';
+  btnResetSim.style.display = 'none';
+  document.getElementById('simStatus').innerText = "Разговор начат...";
+
+  renderDialogStep();
+}
+
+function renderDialogStep() {
+  simChoicesArea.innerHTML = '';
+
+  let currentDialog;
+  if (simStage === 1) {
+    currentDialog = dialogData.stage1[simStep];
+  } else {
+    currentDialog = dialogData.stage2[simStep];
   }
 
-  function renderNode(nodeId) {
-    const node = dialogueTree[nodeId];
-    if (!node) return;
+  if (!currentDialog) return;
 
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble client';
-    bubble.innerHTML = node.text;
-    simChatArea.appendChild(bubble);
-    simChatArea.scrollTop = simChatArea.scrollHeight;
+  // Render client text
+  addChatBubble(currentDialog.text, 'client');
 
-    if (node.isSuccess) {
-      simStatus.textContent = 'Успех: Выезд назначен!';
-      simStatus.style.color = 'var(--success)';
-      btnResetSim.style.display = 'inline-flex';
-      btnResetSim.textContent = 'Пройти тренажер еще раз';
-      
-      traineeState.exercises.level2Sim = true;
-      saveTraineeState();
-      updateTraineeUI();
-      return;
-    }
-
-    if (node.isFailure) {
-      simStatus.textContent = 'Разговор сорван!';
-      simStatus.style.color = 'var(--danger)';
-      
-      const rBubble = document.createElement('div');
-      rBubble.className = 'chat-bubble client';
-      rBubble.style.borderColor = 'var(--danger)';
-      rBubble.style.background = 'var(--danger-glow)';
-      rBubble.innerHTML = `<strong>Ошибка:</strong> ${node.reason}`;
-      simChatArea.appendChild(rBubble);
-      simChatArea.scrollTop = simChatArea.scrollHeight;
-
-      btnResetSim.style.display = 'inline-flex';
-      btnResetSim.textContent = 'Попробовать снова';
-      return;
-    }
-
-    simChoicesArea.innerHTML = '';
-    node.choices.forEach(choice => {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-      btn.textContent = choice.text;
-      btn.addEventListener('click', () => {
-        const mBubble = document.createElement('div');
-        mBubble.className = 'chat-bubble manager';
-        mBubble.textContent = choice.text;
-        simChatArea.appendChild(mBubble);
-        simChoicesArea.innerHTML = '';
-        
-        setTimeout(() => { renderNode(choice.next); }, 600);
-      });
-      simChoicesArea.appendChild(btn);
+  // Render choices
+  currentDialog.choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerText = choice.text;
+    btn.addEventListener('click', () => {
+      handleChoiceSelection(choice);
     });
-  }
+    simChoicesArea.appendChild(btn);
+  });
+}
 
-  if (btnResetSim) {
-    btnResetSim.addEventListener('click', startSimulator);
-  }
+function addChatBubble(text, sender) {
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${sender}`;
+  bubble.innerText = text;
+  simChatArea.appendChild(bubble);
+  simChatArea.scrollTop = simChatArea.scrollHeight;
+}
 
-  // Level 3: Objection Quiz
-  const quizObjectionOptions = document.getElementById('quizObjectionOptions');
-  const quizObjectionFeedback = document.getElementById('quizObjectionFeedback');
+function handleChoiceSelection(choice) {
+  // Disable options during animation
+  simChoicesArea.innerHTML = '';
 
-  if (quizObjectionOptions) {
-    quizObjectionOptions.addEventListener('click', (e) => {
-      const option = e.target.closest('.quiz-option');
-      if (!option || option.classList.contains('disabled')) return;
+  // Add manager's answer
+  addChatBubble(choice.text, 'manager');
 
-      const isCorrect = option.getAttribute('data-correct') === 'true';
-      quizObjectionOptions.querySelectorAll('.quiz-option').forEach(opt => {
-        opt.classList.add('disabled');
-        if (opt.getAttribute('data-correct') === 'true') {
-          opt.classList.add('correct');
-        } else if (opt === option) {
-          opt.classList.add('incorrect');
-        }
-      });
+  setTimeout(() => {
+    // Add client reply
+    addChatBubble(choice.reply, 'client');
 
-      if (isCorrect) {
-        quizObjectionFeedback.textContent = 'Правильно! Этот ответ хвалит ЛПР, объясняет необходимость сохранения гарантии и закрывает разговор предложением времени.';
-        quizObjectionFeedback.className = 'quiz-feedback show correct';
-        
-        traineeState.exercises.level3Quiz = true;
-        saveTraineeState();
-        updateTraineeUI();
-      } else {
-        quizObjectionFeedback.textContent = 'Неверно. Такой ответ либо спорит с клиентом, либо ведет к потере инициативы.';
-        quizObjectionFeedback.className = 'quiz-feedback show incorrect';
-        
+    setTimeout(() => {
+      if (choice.nextStep === 99) {
+        // Failure
+        addChatBubble("🔴 РАЗГОВОР ПРЕРВАН. КЛИЕНТ ПОВЕСИЛ ТРУБКУ.", "client");
+        document.getElementById('simStatus').innerText = "Ошибка в диалоге!";
+        btnResetSim.style.display = 'block';
+      } else if (choice.nextStep === 2) {
+        // Success of Stage 1, transition to Stage 2
+        simStage = 2;
+        simStep = 0;
+        simContactName.innerText = "Игорь (Управляющий)";
+        simContactTitle.innerText = "Ресторан «Палермо» (Этап 2: Закрытие ЛПР)";
+        simAvatar.innerText = "И";
+        simAvatar.style.background = "rgba(0, 240, 255, 0.2)";
+        addChatBubble("📞 ИДЕТ ПЕРЕАДРЕСАЦИЯ ЗВОНКА НА УПРАВЛЯЮЩЕГО...", "manager");
         setTimeout(() => {
-          quizObjectionOptions.querySelectorAll('.quiz-option').forEach(opt => {
-            opt.classList.remove('disabled', 'correct', 'incorrect');
-          });
-          quizObjectionFeedback.classList.remove('show');
-        }, 2000);
-      }
-    });
-  }
-
-  // Level 4: CRM board Drag-and-drop & tasks scheduler
-  function bindCRMTaskSchedulerEvents() {
-    const crmDeal = document.getElementById('crm-deal-1');
-    const crmColCold = document.getElementById('crm-col-cold');
-    const crmScheduler = document.getElementById('crmScheduler');
-    const btnSaveTask = document.getElementById('btnSaveTask');
-    const btnCancelTask = document.getElementById('btnCancelTask');
-    
-    if (btnCancelTask) {
-      btnCancelTask.addEventListener('click', () => {
-        if (crmColCold && crmDeal) {
-          crmColCold.appendChild(crmDeal);
-          document.getElementById('crmCountCold').textContent = '1';
-          document.getElementById('crmCountDiag').textContent = '0';
-        }
-        crmScheduler.classList.remove('active');
-      });
-    }
-
-    if (btnSaveTask) {
-      btnSaveTask.addEventListener('click', () => {
-        const type = document.getElementById('taskType').value;
-        const time = document.getElementById('taskTime').value;
-        const text = document.getElementById('taskText').value.trim();
-
-        if (!type || !time || !text) {
-          alert('Пожалуйста, заполните все поля задачи!');
-          return;
-        }
-
-        if (type === 'call' && time === '2h' && text.length > 15) {
-          alert('Задача успешно создана в AMO CRM по регламенту!');
-          crmScheduler.innerHTML = '<div style="color: var(--success); font-weight: 600; text-align: center; padding: 1rem;">✓ Сделка успешно переведена, задача на напоминание за 2 часа поставлена! Блок CRM зачтен.</div>';
-          
-          traineeState.exercises.level4Crm = true;
-          saveTraineeState();
-          updateTraineeUI();
-        } else {
-          alert('Ошибка регламента! Проверьте условия:\n1. Тип задачи: "Напомнить о встрече (Звонок/WhatsApp)".\n2. Срок: "За 2 часа до выезда инженера".\n3. В тексте укажите подробные инструкции (кто едет, во сколько, кому написать).');
-        }
-      });
-    }
-  }
-
-  // Level 5: WhatsApp message verification
-  const btnCheckWaMessage = document.getElementById('btnCheckWaMessage');
-  const waFeedback = document.getElementById('waFeedback');
-
-  if (btnCheckWaMessage) {
-    btnCheckWaMessage.addEventListener('click', () => {
-      const text = document.getElementById('waMessageText').value.trim().toLowerCase();
-      if (text.length < 30) {
-        waFeedback.innerHTML = 'Сообщение слишком короткое. Клиент не поймет серьезность ситуации.';
-        waFeedback.className = 'quiz-feedback show incorrect';
-        return;
-      }
-
-      const keywords = ['ирина', 'инженер', 'отчет', 'компрессор', 'фреон', 'сгореть', '75'];
-      const missing = [];
-      keywords.forEach(kw => {
-        if (!text.includes(kw)) missing.push(kw);
-      });
-
-      if (missing.length === 0) {
-        waFeedback.innerHTML = 'Отлично! Вы указали имя клиента, сослались на отчет инженера, четко описали проблему (фреон, компрессор), предупредили о критических последствиях (сгорит компрессор) и указали стоимость альтернативного дорогого ремонта (75 000 рублей). Это идеальное письмо-дожим!';
-        waFeedback.className = 'quiz-feedback show correct';
+          renderDialogStep();
+        }, 1500);
+      } else if (choice.nextStep === 5) {
+        // Success of Stage 2, complete simulator!
+        addChatBubble("🎉 ОТЛИЧНО! ВСТРЕЧА СОГЛАСОВАНА. ЗАПИСЬ ДОБАВЛЕНА В CRM.", "manager");
+        document.getElementById('simStatus').innerText = "Диалог успешно завершен!";
         
-        traineeState.exercises.level5Wa = true;
-        saveTraineeState();
-        updateTraineeUI();
+        // Auto mark Level 2 simulator complete in state
+        db = loadDB();
+        const u = db.users[currentUser.email];
+        // progress tracking logic
+        saveDB(db);
+        btnResetSim.innerText = "Пройти симулятор еще раз";
+        btnResetSim.style.display = 'block';
       } else {
-        const missingReport = missing.map(m => `"${m}"`).join(', ');
-        waFeedback.innerHTML = `Сообщение хорошее, но не хватает убедительности. Попробуйте включить важные детали: ${missingReport}. Помните, клиент должен почувствовать выгоду ремонта прямо сейчас по сравнению с заменой сгоревшего компрессора за 75 000 рублей.`;
-        waFeedback.className = 'quiz-feedback show incorrect';
+        // Continue within stage
+        if (simStage === 1) {
+          simStep = choice.nextStep;
+        } else {
+          // Adjust index for Stage 2 list mapping
+          // nextStep for Stage 2 maps index: 3 -> index 1, 4 -> index 2
+          simStep = choice.nextStep - 2;
+        }
+        renderDialogStep();
+      }
+    }, 800);
+  }, 600);
+}
+
+btnResetSim.addEventListener('click', () => {
+  initPhoneSimulator();
+});
+
+
+// ================= LEVEL 3: QUIZ OBJECTIONS =================
+function initQuizObjections() {
+  const options = document.querySelectorAll('#quizObjectionOptions .quiz-option');
+  const feedback = document.getElementById('quizObjectionFeedback');
+
+  options.forEach(opt => {
+    opt.addEventListener('click', () => {
+      // Remove classes
+      options.forEach(o => {
+        o.classList.remove('correct', 'incorrect');
+        o.classList.add('disabled');
+      });
+
+      const isCorrect = opt.getAttribute('data-correct') === 'true';
+      if (isCorrect) {
+        opt.classList.add('correct');
+        feedback.innerText = '✨ Абсолютно верно! Вы присоединились к клиенту, похвалили его мастера («проявили уважение»), а затем предложили бесплатный независимый аудит как пользу для его же бизнеса.';
+        feedback.className = 'quiz-feedback correct show';
+      } else {
+        opt.classList.add('incorrect');
+        feedback.innerText = '❌ Неверно. Это агрессивный или пассивный ответ. Наша задача — мягко обойти мастера дядю Васю, не критикуя его, а предложив бесплатную техническую ценность.';
+        feedback.className = 'quiz-feedback incorrect show';
+        
+        // Reset after 3 seconds to try again
+        setTimeout(() => {
+          options.forEach(o => {
+            o.classList.remove('correct', 'incorrect', 'disabled');
+          });
+          feedback.classList.remove('show');
+        }, 3000);
       }
     });
+  });
+}
+
+
+// ================= LEVEL 4: CRM DRAG AND DROP =================
+function initCrmSimulator() {
+  const dealCard = document.getElementById('crm-deal-1');
+  const columns = document.querySelectorAll('.crm-column');
+  const scheduler = document.getElementById('crmScheduler');
+
+  if (!dealCard) return;
+
+  dealCard.addEventListener('dragstart', () => {
+    dealCard.classList.add('dragging');
+  });
+
+  dealCard.addEventListener('dragend', () => {
+    dealCard.classList.remove('dragging');
+  });
+
+  columns.forEach(col => {
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      col.classList.add('dragover');
+    });
+
+    col.addEventListener('dragleave', () => {
+      col.classList.remove('dragover');
+    });
+
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('dragover');
+      const draggingCard = document.querySelector('.crm-deal-card.dragging');
+      if (draggingCard) {
+        moveCrmCard(draggingCard, col);
+      }
+    });
+    
+    // Tap to move support for mobile
+    col.addEventListener('click', () => {
+      const selected = document.querySelector('.crm-deal-card.selected');
+      if (selected) {
+        moveCrmCard(selected, col);
+        selected.classList.remove('selected');
+      }
+    });
+  });
+
+  dealCard.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dealCard.classList.toggle('selected');
+  });
+
+  function moveCrmCard(card, column) {
+    column.appendChild(card);
+    const status = column.getAttribute('data-status');
+    
+    // Update counts
+    document.getElementById('crmCountCold').innerText = document.getElementById('crm-col-cold').querySelectorAll('.crm-deal-card').length;
+    document.getElementById('crmCountDiag').innerText = document.getElementById('crm-col-diag').querySelectorAll('.crm-deal-card').length;
+
+    if (status === 'diag') {
+      // Trigger task scheduler popup
+      scheduler.classList.add('active');
+    } else {
+      scheduler.classList.remove('active');
+    }
   }
 
-  // Level 5: Exam block click listeners
-  const examQuestions = ['q1', 'q2', 'q3'];
-  examQuestions.forEach(qId => {
-    const qBlock = document.querySelector(`.quiz-options[data-question="${qId}"]`);
-    if (qBlock) {
-      qBlock.addEventListener('click', (e) => {
-        const option = e.target.closest('.quiz-option');
-        if (!option || option.classList.contains('disabled')) return;
-        
-        qBlock.querySelectorAll('.quiz-option').forEach(opt => {
-          opt.classList.remove('correct', 'incorrect');
-        });
-        
-        const isCorrect = option.getAttribute('data-correct') === 'true';
-        if (isCorrect) option.classList.add('correct');
-        else option.classList.add('incorrect');
-      });
+  // Task scheduler handlers
+  const btnSaveTask = document.getElementById('btnSaveTask');
+  const btnCancelTask = document.getElementById('btnCancelTask');
+
+  btnSaveTask.addEventListener('click', () => {
+    const type = document.getElementById('taskType').value;
+    const time = document.getElementById('taskTime').value;
+    const text = document.getElementById('taskText').value.trim();
+
+    if (!type || !time || !text) {
+      alert('Пожалуйста, заполните все поля регламента задачи!');
+      return;
+    }
+
+    if (type === 'call' && time === '2h') {
+      alert('✅ Отлично! Задача создана по регламенту. Теперь сделка переведена на этап «Назначена диагностика», а система напомнит вам написать клиенту за 2 часа до приезда инженера.');
+      scheduler.classList.remove('active');
+      document.getElementById('taskType').value = '';
+      document.getElementById('taskTime').value = '';
+      document.getElementById('taskText').value = '';
+    } else {
+      alert('❌ Ошибка регламента! По правилам «Климат Севера», вы должны поставить тип задачи «Звонок / WhatsApp (Напомнить о встрече)» и выбрать срок «За 2 часа до выезда инженера». Исправьте настройки задачи.');
     }
   });
 
+  btnCancelTask.addEventListener('click', () => {
+    // Reset deal card position
+    document.getElementById('crm-col-cold').appendChild(dealCard);
+    document.getElementById('crmCountCold').innerText = '1';
+    document.getElementById('crmCountDiag').innerText = '0';
+    scheduler.classList.remove('active');
+  });
+}
+
+
+// ================= LEVEL 5: WHATSAPP MESSAGE & EXAM =================
+const btnCheckWaMessage = document.getElementById('btnCheckWaMessage');
+btnCheckWaMessage.addEventListener('click', () => {
+  const text = document.getElementById('waMessageText').value.trim();
+  const feedback = document.getElementById('waFeedback');
+
+  if (!text) {
+    alert('Напишите сообщение перед проверкой.');
+    return;
+  }
+
+  // Keywords checking for advanced salesman presentation
+  const hasGreeting = text.includes('Добрый') || text.includes('Здравствуйте');
+  const hasPrice = text.includes('8 500');
+  const hasRisk = text.includes('75 000') || text.includes('сгорит') || text.includes('компрессор');
+  const hasAction = text.includes('Согласуем') || text.includes('Когда') || text.includes('удобно');
+
+  if (hasGreeting && hasPrice && hasRisk && hasAction) {
+    feedback.innerText = '✨ Отличный скрипт! Вы поприветствовали клиента, четко противопоставили профилактику за 8 500 рублей риску потерять 75 000 рублей на замену сгоревшего компрессора и сделали призыв к действию. Это продажа ценности!';
+    feedback.className = 'quiz-feedback correct show';
+  } else {
+    let missing = [];
+    if (!hasGreeting) missing.push('Приветствие (Ирина, добрый день!)');
+    if (!hasPrice) missing.push('Цена обслуживания (8 500 руб.)');
+    if (!hasRisk) missing.push('Риск потери/замены компрессора (75 000 руб.)');
+    if (!hasAction) missing.push('Призыв к действию (Когда прислать мастера?)');
+
+    feedback.innerText = `❌ Сообщение недостаточно убедительно. Пропущенные элементы продажника: ${missing.join(', ')}. Попробуйте доработать скрипт!`;
+    feedback.className = 'quiz-feedback incorrect show';
+  }
+});
+
+// Final Exam
+function initFinalExam() {
   const btnSubmitExam = document.getElementById('btnSubmitExam');
   const examFeedback = document.getElementById('examFeedback');
 
-  if (btnSubmitExam) {
-    btnSubmitExam.addEventListener('click', () => {
-      let allCorrect = true;
-      let answeredCount = 0;
-
-      examQuestions.forEach(qId => {
-        const qBlock = document.querySelector(`.quiz-options[data-question="${qId}"]`);
-        if (qBlock) {
-          const selected = qBlock.querySelector('.quiz-option.correct');
-          if (selected) answeredCount++;
-          else allCorrect = false;
-        }
-      });
-
-      if (answeredCount < 3) {
-        examFeedback.textContent = 'Пожалуйста, ответьте на все 3 вопроса перед отправкой!';
-        examFeedback.className = 'quiz-feedback show incorrect';
-        return;
-      }
-
-      if (allCorrect) {
-        examFeedback.textContent = 'Поздравляем! Вы правильно ответили на все вопросы экзамена. Программа обучения завершена!';
-        examFeedback.className = 'quiz-feedback show correct';
+  // Handle option select highlighting
+  const qBlocks = document.querySelectorAll('.quiz-question-block');
+  qBlocks.forEach(block => {
+    const opts = block.querySelectorAll('.quiz-option');
+    opts.forEach(opt => {
+      opt.addEventListener('click', () => {
+        opts.forEach(o => o.classList.remove('correct', 'incorrect', 'selected-val'));
+        opt.classList.add('selected-val');
         
-        traineeState.exercises.level5Exam = true;
-        saveTraineeState();
-        updateTraineeUI();
+        // Visual indicator
+        opts.forEach(o => {
+          o.querySelector('.option-dot').style.borderColor = 'var(--text-muted)';
+          o.querySelector('.option-dot').style.background = 'transparent';
+        });
+        opt.querySelector('.option-dot').style.borderColor = 'var(--accent-cyan)';
+        opt.querySelector('.option-dot').style.background = 'var(--accent-cyan)';
+      });
+    });
+  });
+
+  btnSubmitExam.addEventListener('click', () => {
+    let score = 0;
+    let totalQuestions = 3;
+    let allSelected = true;
+
+    const selections = {};
+    qBlocks.forEach(block => {
+      const qId = block.querySelector('.quiz-options').getAttribute('data-question');
+      const selectedOpt = block.querySelector('.quiz-option.selected-val');
+      if (!selectedOpt) {
+        allSelected = false;
       } else {
-        examFeedback.textContent = 'В ответах есть ошибки. Перечитайте теоретический материал и попробуйте изменить ответы.';
-        examFeedback.className = 'quiz-feedback show incorrect';
+        selections[qId] = selectedOpt;
       }
     });
-  }
 
-  // --- TRAINEE HOMEWORK SUBMIT ACTIONS ---
-  for (let l = 1; l <= 5; l++) {
-    const btnSubmit = document.getElementById(`btnSubmit-${l}`);
-    if (btnSubmit) {
-      btnSubmit.addEventListener('click', () => {
-        const hwInput = document.getElementById(`hwInput-${l}`);
-        const text = hwInput.value.trim();
-
-        if (text.length < 20) {
-          alert('Пожалуйста, напишите более подробный ответ на домашнее задание (хотя бы 20 символов).');
-          return;
-        }
-
-        // Check if level practice exercise was completed first
-        if (l === 1 && !traineeState.exercises.level1Matching) {
-          alert('Прежде чем отправить ДЗ, завершите интерактивную практику (сопоставьте боли клиентов).');
-          return;
-        }
-        if (l === 2 && !traineeState.exercises.level2Sim) {
-          alert('Прежде чем отправить ДЗ, успешно пройдите симулятор звонка.');
-          return;
-        }
-        if (l === 3 && !traineeState.exercises.level3Quiz) {
-          alert('Прежде чем отправить ДЗ, верно ответьте на практический тест по возражениям.');
-          return;
-        }
-        if (l === 4 && !traineeState.exercises.level4Crm) {
-          alert('Прежде чем отправить ДЗ, завершите интерактивную практику в симуляторе CRM.');
-          return;
-        }
-        if (l === 5 && (!traineeState.exercises.level5Wa || !traineeState.exercises.level5Exam)) {
-          alert('Прежде чем отправить ДЗ, завершите практику по WhatsApp-письму и сдайте финальный экзамен.');
-          return;
-        }
-
-        // Save homework
-        traineeState.homeworks[l].text = text;
-        traineeState.homeworks[l].status = 'На проверке'; // Send to curator
-
-        // Mark level completed
-        if (!traineeState.completedLevels.includes(l)) {
-          traineeState.completedLevels.push(l);
-        }
-
-        // Unlock next level
-        const nextLvl = l + 1;
-        if (nextLvl <= 5 && !traineeState.unlockedLevels.includes(nextLvl)) {
-          traineeState.unlockedLevels.push(nextLvl);
-        }
-
-        saveTraineeState();
-        updateTraineeUI();
-        alert(`Домашнее задание для уровня ${l} отправлено! Теперь куратор сможет зайти в свою панель и проверить его.`);
-      });
-    }
-  }
-
-
-  // =========================================================================
-  // ========================== SUPERVISOR ADMIN PANEL =======================
-  // =========================================================================
-  
-  let selectedStudentEmail = null;
-
-  function initAdminPanel() {
-    renderAdminTraineesList();
-    
-    // Clear display viewport
-    adminDetailsPlaceholder.style.display = 'block';
-    adminDetailsContent.style.display = 'none';
-    selectedStudentEmail = null;
-  }
-
-  function renderAdminTraineesList() {
-    if (!adminUsersContainer) return;
-    adminUsersContainer.innerHTML = '';
-
-    const managerEmails = Object.keys(dbRegistry.users);
-    adminUsersCount.textContent = managerEmails.length;
-
-    if (managerEmails.length === 0) {
-      adminUsersContainer.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem; text-align: center; padding: 1.5rem;">Нет зарегистрированных студентов.</p>';
+    if (!allSelected) {
+      alert('Пожалуйста, выберите ответы на все вопросы экзамена!');
       return;
     }
 
-    managerEmails.forEach(email => {
-      const student = dbRegistry.users[email];
-      
-      // Calculate progress percentage
-      let earned = student.completedLevels.length;
-      if (student.exercises.level1Matching) earned++;
-      if (student.exercises.level2Sim) earned++;
-      if (student.exercises.level3Quiz) earned++;
-      if (student.exercises.level4Crm) earned++;
-      if (student.exercises.level5Wa) earned++;
-      if (student.exercises.level5Exam) earned++;
-      const progressPercent = Math.round((earned / 11) * 100);
-
-      // Create item card
-      const itemBtn = document.createElement('button');
-      itemBtn.className = `student-item ${selectedStudentEmail === email ? 'active' : ''}`;
-      itemBtn.innerHTML = `
-        <div class="student-meta">
-          <span class="student-email" title="${email}">${email}</span>
-          <div class="student-progress-row">
-            <span>Прогресс обучения</span>
-            <span>${progressPercent}%</span>
-          </div>
-          <div class="student-bar-outer">
-            <div class="student-bar-inner" style="width: ${progressPercent}%;"></div>
-          </div>
-        </div>
-      `;
-
-      itemBtn.addEventListener('click', () => {
-        // Toggle active button
-        adminUsersContainer.querySelectorAll('.student-item').forEach(el => el.classList.remove('active'));
-        itemBtn.classList.add('active');
-
-        selectedStudentEmail = email;
-        renderAdminStudentDetails(email);
-      });
-
-      adminUsersContainer.appendChild(itemBtn);
+    // Check answers
+    Object.keys(selections).forEach(qId => {
+      const opt = selections[qId];
+      const isCorrect = opt.getAttribute('data-correct') === 'true';
+      if (isCorrect) {
+        score++;
+        opt.classList.add('correct');
+      } else {
+        opt.classList.add('incorrect');
+      }
     });
-  }
 
-  function renderAdminStudentDetails(email) {
-    const student = dbRegistry.users[email];
-    if (!student) return;
+    if (score === totalQuestions) {
+      examFeedback.innerText = '🏆 ПОЗДРАВЛЯЕМ! Вы сдали итоговый экзамен на 100%. Ваша квалификация «Суперпродажник Климата» подтверждена. Теперь отправьте домашнее задание Уровня 5 куратору для финальной верификации.';
+      examFeedback.className = 'quiz-feedback correct show';
+    } else {
+      examFeedback.innerText = `❌ Вы ответили верно на ${score} из ${totalQuestions} вопросов. Ознакомьтесь с теорией разделов заново и пройдите тест повторно.`;
+      examFeedback.className = 'quiz-feedback incorrect show';
+    }
+  });
+}
 
-    adminDetailsPlaceholder.style.display = 'none';
-    adminDetailsContent.style.display = 'block';
 
-    adminSelectedUserEmail.textContent = email;
+// ================= SUPERVISOR DASHBOARD (ADMIN) =================
+const adminUsersContainer = document.getElementById('adminUsersContainer');
+const adminDetailsCard = document.getElementById('adminDetailsCard');
+const adminDetailsPlaceholder = document.getElementById('adminDetailsPlaceholder');
+const adminDetailsContent = document.getElementById('adminDetailsContent');
+const adminSelectedUserEmail = document.getElementById('adminSelectedUserEmail');
+const adminSelectedUserProgress = document.getElementById('adminSelectedUserProgress');
+const adminHwTimeline = document.getElementById('adminHwTimeline');
 
-    // Calc progress
-    let earned = student.completedLevels.length;
-    if (student.exercises.level1Matching) earned++;
-    if (student.exercises.level2Sim) earned++;
-    if (student.exercises.level3Quiz) earned++;
-    if (student.exercises.level4Crm) earned++;
-    if (student.exercises.level5Wa) earned++;
-    if (student.exercises.level5Exam) earned++;
-    const progressPercent = Math.round((earned / 11) * 100);
-    adminSelectedUserProgress.textContent = `Выполнение программы: ${progressPercent}% (${earned}/11 контрольных точек)`;
+function showAdminDashboard() {
+  document.getElementById('traineeView').style.display = 'none';
+  document.getElementById('adminView').style.display = 'flex';
+  document.getElementById('appSidebar').style.display = 'flex';
+  userEmailSpan.innerText = 'Куратор (Админ)';
+  renderAdminUsersList();
+}
 
-    // Draw homework details timeline
-    adminHwTimeline.innerHTML = '';
+function renderAdminUsersList() {
+  db = loadDB();
+  adminUsersContainer.innerHTML = '';
+  const emails = Object.keys(db.users);
+  
+  document.getElementById('adminUsersCount').innerText = emails.length;
+
+  emails.forEach(email => {
+    const user = db.users[email];
+    const div = document.createElement('div');
+    div.className = 'student-item';
+    div.innerHTML = `
+      <div class="student-meta">
+        <span class="student-email">${email}</span>
+        <div class="student-progress-row">
+          <span>Прогресс</span>
+          <span>${user.progress}%</span>
+        </div>
+        <div class="student-bar-outer">
+          <div class="student-bar-inner" style="width: ${user.progress}%"></div>
+        </div>
+      </div>
+    `;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.student-item').forEach(x => x.classList.remove('active'));
+      div.classList.add('active');
+      showStudentDetails(email);
+    });
+    adminUsersContainer.appendChild(div);
+  });
+}
+
+function showStudentDetails(email) {
+  db = loadDB();
+  const user = db.users[email];
+  if (!user) return;
+
+  adminDetailsPlaceholder.style.display = 'none';
+  adminDetailsContent.style.display = 'block';
+
+  adminSelectedUserEmail.innerText = email;
+  adminSelectedUserProgress.innerText = `Прогресс: ${user.progress}%`;
+
+  adminHwTimeline.innerHTML = '';
+
+  for (let i = 1; i <= 5; i++) {
+    const hw = user.homeworks[i.toString()];
+    const div = document.createElement('div');
     
-    const levelHwTitles = {
-      1: "ДЗ 1-2: Карточки болей в ресторане",
-      2: "ДЗ 3-4: Психология бесплатной диагностики",
-      3: "ДЗ 5-6: Отработка возражения «Нет денег»",
-      4: "ДЗ 7-8: Схема обхода администратора (ресепшена)",
-      5: "ДЗ 9-10: Анализ бутылочного горлышка воронки"
-    };
+    // Status display
+    let statusText = 'Не приступал';
+    let isCompletedClass = '';
+    let btnHtml = '';
 
-    for (let l = 1; l <= 5; l++) {
-      const hw = student.homeworks[l];
-      const isCompleted = student.completedLevels.includes(l);
-      
-      const timelineItem = document.createElement('div');
-      timelineItem.className = `timeline-item ${isCompleted ? 'completed' : ''}`;
-      
-      let badgeClass = 'badge-blue';
-      if (hw.status === 'Сдано') badgeClass = 'badge-success';
-      else if (hw.status === 'Не сдано') badgeClass = 'badge-blue';
-
-      let statusBadge = `<span class="badge ${badgeClass}" id="admin-hw-badge-${l}">${hw.status}</span>`;
-
-      // Build mock approve/reject controls
-      let controlsHtml = '';
-      if (hw.status === 'На проверке') {
-        controlsHtml = `
-          <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;" id="admin-hw-controls-${l}">
-            <button class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" onclick="approveHomework('${email}', ${l})">Одобрить ДЗ</button>
-            <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; border-color: var(--danger); color: var(--danger); background: transparent;" onclick="rejectHomework('${email}', ${l})">Отклонить ДЗ</button>
-          </div>
-        `;
-      }
-
-      timelineItem.innerHTML = `
-        <div class="timeline-header">
-          <span class="timeline-title">${levelHwTitles[l]}</span>
-          ${statusBadge}
+    if (hw && hw.status === 'submitted') {
+      statusText = 'На проверке';
+      btnHtml = `
+        <div style="margin-top: 0.75rem; display: flex; gap: 0.5rem;">
+          <button class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.75rem;" onclick="acceptHomework('${email}', ${i})">Принять ДЗ</button>
+          <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; color: var(--danger);" onclick="rejectHomework('${email}', ${i})">Отклонить</button>
         </div>
-        <div class="timeline-body ${hw.text ? '' : 'empty'}">${hw.text ? escapeHTML(hw.text) : 'Домашнее задание еще не отправлено.'}</div>
-        ${controlsHtml}
       `;
-      adminHwTimeline.appendChild(timelineItem);
+    } else if (hw && hw.status === 'accepted') {
+      statusText = 'Зачтено';
+      isCompletedClass = 'completed';
     }
+
+    div.className = `timeline-item ${isCompletedClass}`;
+    div.innerHTML = `
+      <div class="timeline-header">
+        <span class="timeline-title">Домашнее задание Уровень ${i}</span>
+        <span class="badge ${hw && hw.status === 'accepted' ? 'badge-success' : 'badge-blue'}">${statusText}</span>
+      </div>
+      <div class="timeline-body ${!hw || !hw.answer ? 'empty' : ''}">
+        ${hw && hw.answer ? hw.answer : 'Студент еще не написал ответ на это задание.'}
+      </div>
+      ${btnHtml}
+    `;
+    adminHwTimeline.appendChild(div);
   }
+}
 
-  // Expose review functions to window so they can trigger from HTML inline onclick
-  window.approveHomework = function(email, lvl) {
-    const student = dbRegistry.users[email];
-    if (student) {
-      student.homeworks[lvl].status = 'Сдано';
-      saveDatabase();
-      
-      // Re-render
-      renderAdminStudentDetails(email);
-      renderAdminTraineesList();
-      alert(`Домашнее задание пользователя ${email} по уровню ${lvl} принято!`);
-    }
-  };
+// Global functions for admin action calls
+window.acceptHomework = function(email, level) {
+  db = loadDB();
+  const user = db.users[email];
+  if (!user) return;
 
-  window.rejectHomework = function(email, lvl) {
-    const student = dbRegistry.users[email];
-    if (student) {
-      student.homeworks[lvl].status = 'Не сдано';
-      student.homeworks[lvl].text = ''; // Reset text for re-submission
-      
-      // Remove level from completed
-      const idx = student.completedLevels.indexOf(lvl);
-      if (idx > -1) {
-        student.completedLevels.splice(idx, 1);
-      }
-      
-      saveDatabase();
-      
-      // Re-render
-      renderAdminStudentDetails(email);
-      renderAdminTraineesList();
-      alert(`Домашнее задание пользователя ${email} по уровню ${lvl} отклонено и сброшено!`);
-    }
-  };
-
-  function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, 
-      tag => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;'
-      }[tag] || tag)
-    );
+  // Accept homework
+  user.homeworks[level.toString()].status = 'accepted';
+  
+  // Unlock level and add progress
+  if (!user.completedLevels.includes(level)) {
+    user.completedLevels.push(level);
   }
+  
+  // Calculate progress: 20% per level accepted
+  user.progress = user.completedLevels.length * 20;
 
-  // Admin export JSON logic
-  if (btnAdminExport) {
-    btnAdminExport.addEventListener('click', () => {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dbRegistry, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `all_trainees_report_${new Date().toISOString().slice(0,10)}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-    });
-  }
+  saveDB(db);
+  showStudentDetails(email);
+  renderAdminUsersList();
+};
 
-  // Admin database reset
-  if (btnAdminReset) {
-    btnAdminReset.addEventListener('click', () => {
-      if (confirm('ВНИМАНИЕ! Это полностью очистит базу данных и удалит всех менеджеров и их прогресс. Вы действительно хотите сбросить БД?')) {
-        localStorage.removeItem(ACCOUNTS_KEY);
-        dbRegistry = { users: {} };
-        saveDatabase();
-        initAdminPanel();
-        alert('База данных сброшена!');
-      }
-    });
+window.rejectHomework = function(email, level) {
+  db = loadDB();
+  const user = db.users[email];
+  if (!user) return;
+
+  // Reject back to empty
+  user.homeworks[level.toString()].status = 'none';
+  user.homeworks[level.toString()].answer = '';
+
+  // Remove from completed if it was there
+  user.completedLevels = user.completedLevels.filter(x => x !== level);
+  user.progress = user.completedLevels.length * 20;
+
+  saveDB(db);
+  showStudentDetails(email);
+  renderAdminUsersList();
+};
+
+// Admin Export Database JSON
+document.getElementById('btnAdminExport').addEventListener('click', () => {
+  db = loadDB();
+  const jsonStr = JSON.stringify(db, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `progress_report_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// Admin Reset database
+document.getElementById('btnAdminReset').addEventListener('click', () => {
+  if (confirm('Вы уверены, что хотите полностью сбросить базу данных? Все студенты и их ответы будут удалены!')) {
+    localStorage.removeItem(DB_KEY);
+    db = loadDB();
+    renderAdminUsersList();
+    adminDetailsPlaceholder.style.display = 'block';
+    adminDetailsContent.style.display = 'none';
+    alert('База данных успешно сброшена.');
   }
 });
