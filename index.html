@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Климат Севера | Обучение Менеджеров по Холодным Звонкам</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- ================= AUTH OVERLAY ================= -->
+  <div class="auth-overlay active" id="authOverlay">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="brand-logo" style="margin: 0 auto 1rem; width: 48px; height: 48px; font-size: 1.5rem;">КС</div>
+        <h2>Академия Продаж</h2>
+        <p>«Климат Севера»</p>
+      </div>
+
+      <!-- Tabs to switch between Login and Register -->
+      <div class="auth-tabs">
+        <button class="auth-tab active" id="tabLoginBtn">Вход</button>
+        <button class="auth-tab" id="tabRegisterBtn">Регистрация</button>
+      </div>
+
+      <form id="authForm" onsubmit="event.preventDefault();">
+        <div class="form-group" style="margin-bottom: 1.25rem;">
+          <label for="authEmail">Email</label>
+          <input type="email" id="authEmail" required placeholder="name@example.com">
+        </div>
+        <div class="form-group" style="margin-bottom: 1.5rem;">
+          <label for="authPassword">Пароль</label>
+          <input type="password" id="authPassword" required placeholder="••••••••">
+        </div>
+        
+        <div id="authError" class="quiz-feedback incorrect" style="margin-bottom: 1.25rem; text-align: center;"></div>
+        
+        <button type="submit" class="btn btn-primary" id="btnSubmitAuth" style="width: 100%;">Войти в систему</button>
+      </form>
+      
+      <div class="auth-footer-note">
+        <p>Вход для куратора:<br>Email: <span>sultan.marketing.dubai@gmail.com</span><br>Пароль: <span>312312312</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= APP CONTAINER ================= -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="appSidebar">
+      <div class="brand-container">
+        <div class="brand-logo">КС</div>
+        <div class="brand-info">
+          <h1>Климат Севера</h1>
+          <span>Академия Продаж v1.0</span>
+        </div>
+      </div>
+
+      <!-- Trainee Sidebar Menu (Hidden for Admin) -->
+      <nav class="roadmap-nav" id="roadmapNav">
+        <!-- Level 1 -->
+        <button class="level-nav-item active" data-level="1">
+          <div class="level-status-icon">1</div>
+          <div class="level-nav-info">
+            <span class="level-number">Дни 1-2</span>
+            <span class="level-title">Боли Клиентов</span>
+          </div>
+        </button>
+
+        <!-- Level 2 -->
+        <button class="level-nav-item locked" data-level="2" disabled>
+          <div class="level-status-icon">2</div>
+          <div class="level-nav-info">
+            <span class="level-number">Дни 3-4</span>
+            <span class="level-title">Скрипт «Помощник»</span>
+          </div>
+          <span class="lock-badge">🔒</span>
+        </button>
+
+        <!-- Level 3 -->
+        <button class="level-nav-item locked" data-level="3" disabled>
+          <div class="level-status-icon">3</div>
+          <div class="level-nav-info">
+            <span class="level-number">Дни 5-6</span>
+            <span class="level-title">Возражения</span>
+          </div>
+          <span class="lock-badge">🔒</span>
+        </button>
+
+        <!-- Level 4 -->
+        <button class="level-nav-item locked" data-level="4" disabled>
+          <div class="level-status-icon">4</div>
+          <div class="level-nav-info">
+            <span class="level-number">Дни 7-8</span>
+            <span class="level-title">Дисциплина CRM</span>
+          </div>
+          <span class="lock-badge">🔒</span>
+        </button>
+
+        <!-- Level 5 -->
+        <button class="level-nav-item locked" data-level="5" disabled>
+          <div class="level-status-icon">5</div>
+          <div class="level-nav-info">
+            <span class="level-number">Дни 9-10</span>
+            <span class="level-title">Аналитика и Финал</span>
+          </div>
+          <span class="lock-badge">🔒</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer (User session details + Log Out) -->
+      <div class="sidebar-footer">
+        <div class="user-profile-badge" id="userProfileBadge">
+          <span class="icon">👤</span>
+          <span id="userEmailSpan">manager@test.com</span>
+        </div>
+        <button class="btn-supervisor" id="btnLogOut">
+          <span>🚪 Выйти из аккаунта</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- ================= TRAINEE VIEW ================= -->
+      <div id="traineeView" style="display: flex; flex-direction: column; width: 100%;">
+        <!-- Sticky Header -->
+        <header class="main-header">
+          <div class="header-title-sec">
+            <h2 id="headerLevelTitle">Уровень 1: Понимание болей клиентов</h2>
+            <p id="headerLevelDays">Дни 1-2 программы обучения</p>
+          </div>
+          <div class="progress-section">
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="progressBar"></div>
+            </div>
+            <span class="progress-text" id="progressText">0% выполнено</span>
+          </div>
+        </header>
+
+        <!-- Content Bodies per Level -->
+        <div class="content-body" id="contentBody">
+          
+          <!-- ================= LEVEL 1 ================= -->
+          <section class="level-section active" id="level-1">
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📘</span> Теория: Специфика клиентов и их «боли»
+              </div>
+              <p class="description">
+                Ваш первый шаг к успешным звонкам — понимание того, <strong>кому</strong> вы звоните и <strong>что</strong> у них болит. Мы работаем в основном с двумя крупными сегментами: <strong>Кафе/Рестораны</strong> и <strong>Банки/Офисы</strong>. В разгар сезона они испытывают разные проблемы.
+              </p>
+              
+              <h3 class="section-header">Сегмент: Кафе и Рестораны</h3>
+              <ul class="theory-list">
+                <li><strong>Запахи из кухни в зал</strong> — если приточно-вытяжная вентиляция забита жиром, запахи жарки идут к гостям.</li>
+                <li><strong>Перегрев на кухне</strong> — повара работают у плит, температура доходит до +40°C, падает производительность, люди падают в обморок.</li>
+                <li><strong>Уход клиентов</strong> — в душном зале никто не задерживается. Клиенты уходят туда, где прохладно, заведение теряет выручку.</li>
+              </ul>
+
+              <h3 class="section-header">Сегмент: Банки и Офисные отделения</h3>
+              <ul class="theory-list">
+                <li><strong>Перегрев серверных комнат</strong> — если серверная нагреется выше нормы, IT-системы отключатся, транзакции остановятся, банк понесет колоссальные убытки.</li>
+                <li><strong>Очереди и душные залы ожидания</strong> — клиенты раздражаются быстрее в душных помещениях, растет нагрузка на персонал.</li>
+                <li><strong>Строгий регламент</strong> — банки не могут нанимать «мастеров с улицы», им важен договор, официальные акты и безналичный расчет.</li>
+              </ul>
+            </div>
+
+            <!-- Interactive Matching game -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">🧠</span> Практика: Сопоставление болей клиентов
+              </div>
+              <p class="description">
+                Перетащите (или поочередно кликните на элемент и его группу) карточки болей в соответствующие колонки категорий клиентов:
+              </p>
+
+              <div class="matching-container">
+                <div class="match-column">
+                  <div class="target-header">Кафе / Рестораны</div>
+                  <div class="match-target" id="target-cafe" data-target="cafe"></div>
+                </div>
+                <div class="match-column">
+                  <div class="target-header">Банки / Офисы</div>
+                  <div class="match-target" id="target-bank" data-target="bank"></div>
+                </div>
+              </div>
+
+              <div style="margin-bottom: 1.5rem;">
+                <div class="target-header">Доступные карточки:</div>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;" id="sourceCards">
+                  <div class="match-item" draggable="true" id="card-1" data-category="cafe">Запахи жарки и жира проникают в гостевой зал</div>
+                  <div class="match-item" draggable="true" id="card-2" data-category="bank">Перегрев серверной стойки и остановка транзакций</div>
+                  <div class="match-item" draggable="true" id="card-3" data-category="cafe">Жара на кухне снижает скорость работы поваров</div>
+                  <div class="match-item" draggable="true" id="card-4" data-category="bank">Клиенты в очереди злятся из-за духоты в операционном зале</div>
+                  <div class="match-item" draggable="true" id="card-5" data-category="cafe">Гости уходят к конкурентам из-за неработающего кондиционера</div>
+                  <div class="match-item" draggable="true" id="card-6" data-category="bank">Сбой кондиционирования в кабинете руководителя во время совещания</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Homework Submission -->
+            <div class="card homework-panel">
+              <div class="card-title">
+                <span class="icon">📝</span> Домашнее задание (Дни 1-2)
+              </div>
+              <p class="description">
+                <strong>Задание:</strong> Опишите 3 типичные проблемы (карточки болей) кондиционирования, с которыми сталкивается администратор ресторана в разгар летнего сезона. Пишите своими словами, как если бы вы объясняли это коллеге.
+              </p>
+              <div class="homework-status-badge" id="hwStatus-1">
+                <span class="badge badge-blue">Не сдано</span>
+              </div>
+              <textarea class="textarea-homework" id="hwInput-1" placeholder="Введите ваш ответ здесь..."></textarea>
+              <button class="btn btn-primary" id="btnSubmit-1">Отправить на проверку</button>
+            </div>
+          </section>
+
+          <!-- ================= LEVEL 2 ================= -->
+          <section class="level-section" id="level-2">
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📘</span> Теория: Скрипт «Эксперт-Помощник»
+              </div>
+              <p class="description">
+                Главное правило нашего скрипта: <strong>мы НЕ продаем ремонт по телефону</strong>. Мы продаем <strong>БЕСПЛАТНЫЙ выезд инженера</strong> для диагностики. Нам нужно снять барьер «они хотят забрать мои деньги».
+              </p>
+              
+              <div class="callout callout-info">
+                <strong>Схема скрипта:</strong><br>
+                1. <strong>Контакт:</strong> Приветствие + Выход на ЛПР (лицо, принимающее решения).<br>
+                2. <strong>Крючок:</strong> Описание сезонных перегрузок и аудит в их районе.<br>
+                3. <strong>Оффер:</strong> Бесплатная диагностика (фреон, компрессор) без обязательств.<br>
+                4. <strong>Закрытие:</strong> Выбор без выбора («в среду в первой или второй половине дня?»).
+              </div>
+            </div>
+
+            <!-- Phone Simulation -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📞</span> Тренажер: Звонок в кафе «Ромашка»
+              </div>
+              <p class="description">
+                Пройдите симуляцию звонка. Ваша цель — договориться о бесплатном выезде инженера. Выберите правильные реплики. Ошибетесь — клиент повесит трубку.
+              </p>
+
+              <div class="sim-container">
+                <div class="sim-header">
+                  <div class="sim-client-info">
+                    <div class="client-avatar">У</div>
+                    <div class="client-meta">
+                      <h4>Ирина (Управляющая кафе)</h4>
+                      <span>Кафе «Ромашка» (Входящий контакт)</span>
+                    </div>
+                  </div>
+                  <div class="sim-status" id="simStatus">В процессе разговора...</div>
+                </div>
+                <div class="sim-chat-area" id="simChatArea">
+                  <!-- Dialogue will load here -->
+                </div>
+                <div class="sim-choices-area" id="simChoicesArea">
+                  <!-- Choices will load here -->
+                </div>
+              </div>
+              
+              <button class="btn btn-secondary" id="btnResetSim" style="display: none;">Начать разговор сначала</button>
+            </div>
+
+            <!-- Homework 2 -->
+            <div class="card homework-panel">
+              <div class="card-title">
+                <span class="icon">📝</span> Домашнее задание (Дни 3-4)
+              </div>
+              <p class="description">
+                <strong>Задание:</strong> Почему мы предлагаем бесплатный аудит вместо предложения починить кондиционер со скидкой? Объясните психологию клиента в этот момент.
+              </p>
+              <div class="homework-status-badge" id="hwStatus-2">
+                <span class="badge badge-blue">Не сдано</span>
+              </div>
+              <textarea class="textarea-homework" id="hwInput-2" placeholder="Введите ваш ответ здесь..."></textarea>
+              <button class="btn btn-primary" id="btnSubmit-2">Отправить на проверку</button>
+            </div>
+          </section>
+
+          <!-- ================= LEVEL 3 ================= -->
+          <section class="level-section" id="level-3">
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📘</span> Теория: Возражения и Техника Якубы
+              </div>
+              <p class="description">
+                При холодных звонках возражения будут всегда. Мы используем мягкое согласие с последующим уводом разговора в ценность (метод Владимира Якубы). Мы соглашаемся с аргументом клиента, хвалим его и предлагаем независимую проверку.
+              </p>
+            </div>
+
+            <!-- Interactive Objection Cards -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">🔄</span> Интерактив: Карточки Возражений
+              </div>
+              <p class="description">
+                Кликните на карточку, чтобы перевернуть ее и изучить лучший сценарий отработки возражения:
+              </p>
+
+              <div class="flashcards-container">
+                <!-- Card 1 -->
+                <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                  <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                      <h4>«У нас уже есть свой мастер»</h4>
+                      <p>Нажмите, чтобы открыть решение</p>
+                    </div>
+                    <div class="flashcard-back">
+                      <h5>Сценарий ответа:</h5>
+                      <p>«Отлично! Значит, вы серьезно относитесь к технике. Наш инженер не просит его нанимать, он просто проведет независимый аудит и даст второе мнение, чтобы вы были уверены в качестве текущих работ. Это бесплатно, вас это ни к чему не обязывает. Удобнее в среду или четверг?»</p>
+                    </div>
+                  </div>
+                </div>
+                <!-- Card 2 -->
+                <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                  <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                      <h4>«Нам сейчас не актуально»</h4>
+                      <p>Нажмите, чтобы открыть решение</p>
+                    </div>
+                    <div class="flashcard-back">
+                      <h5>Сценарий ответа:</h5>
+                      <p>«Понимаю вас, сейчас нагрузка высокая. Именно поэтому мы и предлагаем аудит — чтобы не допустить внезапной поломки в жару, когда ремонт встанет в круглую сумму и парализует работу. Давайте мы просто сделаем замеры, а вы будете спокойны. Удобно принять мастера завтра?»</p>
+                    </div>
+                  </div>
+                </div>
+                <!-- Card 3 -->
+                <div class="flashcard" onclick="this.classList.toggle('flipped')">
+                  <div class="flashcard-inner">
+                    <div class="flashcard-front">
+                      <h4>«Я ничего не решаю, звоните завхозу»</h4>
+                      <p>Нажмите, чтобы открыть решение</p>
+                    </div>
+                    <div class="flashcard-back">
+                      <h5>Сценарий ответа:</h5>
+                      <p>«Я вас понял. А подскажите, пожалуйста, как зовут завхоза и на какой номер мне лучше набрать, чтобы согласовать с ним бесплатный плановый осмотр систем вентиляции, пока инженер работает в вашем квартале?»</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Objection Quiz -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">✏️</span> Тест: Отработка возражений
+              </div>
+              <p class="description">
+                Клиент говорит: <em>«Нам ничего не нужно, у нас новые кондиционеры, их только в том году поставили»</em>. Какая реакция будет самой правильной?
+              </p>
+              <div class="quiz-options" id="quizObjectionOptions">
+                <div class="quiz-option" data-correct="false">
+                  <div class="option-dot"></div>
+                  <span>«Новые кондиционеры тоже ломаются! Вы разве не знали, что им нужно обслуживание раз в полгода?»</span>
+                </div>
+                <div class="quiz-option" data-correct="true">
+                  <div class="option-dot"></div>
+                  <span>«Прекрасно! Новое оборудование — это отличная инвестиция. Как раз для того, чтобы сохранить заводскую гарантию, важно замерить рабочее давление фреона. Наш инженер сделает это бесплатно и заполнит акт. Когда удобнее принять его?»</span>
+                </div>
+                <div class="quiz-option" data-correct="false">
+                  <div class="option-dot"></div>
+                  <span>«Хорошо, раз новые, то мы позвоним вам в следующем году. До свидания.»</span>
+                </div>
+              </div>
+              <div class="quiz-feedback" id="quizObjectionFeedback"></div>
+            </div>
+
+            <!-- Homework 3 -->
+            <div class="card homework-panel">
+              <div class="card-title">
+                <span class="icon">📝</span> Домашнее задание (Дни 5-6)
+              </div>
+              <p class="description">
+                <strong>Задание:</strong> Напишите свой сценарий отработки возражения: <em>«Сейчас кризис, у нас нет денег на обслуживание кондиционеров»</em>. Используйте технику присоединения (похвалите за экономию) и переведите фокус на бесплатность диагностики.
+              </p>
+              <div class="homework-status-badge" id="hwStatus-3">
+                <span class="badge badge-blue">Не сдано</span>
+              </div>
+              <textarea class="textarea-homework" id="hwInput-3" placeholder="Введите ваш ответ здесь..."></textarea>
+              <button class="btn btn-primary" id="btnSubmit-3">Отправить на проверку</button>
+            </div>
+          </section>
+
+          <!-- ================= LEVEL 4 ================= -->
+          <section class="level-section" id="level-4">
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📘</span> Теория: Правила ведения AMO CRM
+              </div>
+              <p class="description">
+                Звонок без фиксации в CRM равен его отсутствию. Менеджер обязан вести сделку строго по этапам воронки и ставить задачи на каждый шаг. Самый важный этап для нас — <strong>«Назначена диагностика»</strong>.
+              </p>
+              
+              <div class="callout callout-warning">
+                <strong>Критическое правило записи задач:</strong><br>
+                1. После назначения встречи ставим задачу <strong>«Напомнить о встрече»</strong> (за 2 часа до приезда инженера). Мы пишем клиенту в WhatsApp или звоним.<br>
+                2. Сразу же ставим задачу <strong>«Узнать результат»</strong> на время, когда инженер должен завершить диагностику.
+              </div>
+            </div>
+
+            <!-- CRM Simulator -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">🖥️</span> Интерактив: Симулятор AMO CRM
+              </div>
+              <p class="description">
+                <strong>Шаг 1:</strong> Перетащите карточку сделки «Кафе Ромашка» из колонки «Холодный контакт» в колонку «Назначена диагностика».<br>
+                <strong>Шаг 2:</strong> Заполните открывшуюся карточку задачи по регламенту.
+              </p>
+
+              <div class="crm-mock">
+                <div class="crm-header">
+                  <span>AMO CRM - Воронка «Холодные Продажи»</span>
+                  <div class="crm-tabs">
+                    <span class="crm-tab active">Сделки</span>
+                    <span class="crm-tab">Задачи</span>
+                  </div>
+                </div>
+                <div class="crm-pipeline">
+                  <!-- Col 1 -->
+                  <div class="crm-column" id="crm-col-cold" data-status="cold">
+                    <div class="crm-col-header">
+                      <span>Холодный контакт</span>
+                      <span class="crm-card-count" id="crmCountCold">1</span>
+                    </div>
+                    <!-- Deal card -->
+                    <div class="crm-deal-card" draggable="true" id="crm-deal-1">
+                      <div class="crm-deal-title">Кафе «Ромашка» (Диагностика)</div>
+                      <div class="crm-deal-meta">
+                        <span>Ирина</span>
+                        <span>0 руб.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Col 2 -->
+                  <div class="crm-column" id="crm-col-wa" data-status="wa">
+                    <div class="crm-col-header">
+                      <span>Отправлено КП/WA</span>
+                      <span class="crm-card-count">0</span>
+                    </div>
+                  </div>
+                  <!-- Col 3 -->
+                  <div class="crm-column" id="crm-col-diag" data-status="diag">
+                    <div class="crm-col-header">
+                      <span>Назначена диагн.</span>
+                      <span class="crm-card-count" id="crmCountDiag">0</span>
+                    </div>
+                  </div>
+                  <!-- Col 4 -->
+                  <div class="crm-column" id="crm-col-done" data-status="done">
+                    <div class="crm-col-header">
+                      <span>Проведена</span>
+                      <span class="crm-card-count">0</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CRM Task Scheduler Overlay Mock -->
+              <div class="crm-task-scheduler" id="crmScheduler">
+                <div class="scheduler-title">➕ Создание автоматической задачи по сделке</div>
+                <form class="scheduler-form" id="schedulerForm" onsubmit="event.preventDefault();">
+                  <div class="form-group">
+                    <label for="taskType">Тип задачи</label>
+                    <select id="taskType">
+                      <option value="">-- Выберите тип --</option>
+                      <option value="call">Звонок / WhatsApp (Напомнить о встрече)</option>
+                      <option value="audit">Узнать результат у инженера</option>
+                      <option value="other">Другое</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="taskTime">Срок (когда выполнить)</label>
+                    <select id="taskTime">
+                      <option value="">-- Выберите срок --</option>
+                      <option value="2h">За 2 часа до выезда инженера</option>
+                      <option value="post">Сразу после выезда инженера</option>
+                      <option value="eod">В конце дня</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="grid-column: span 2;">
+                    <label for="taskText">Текст задачи (комментарий для менеджера)</label>
+                    <textarea id="taskText" placeholder="Например: Напомнить Ирине о выезде инженера Петра в 14:00, написать в WhatsApp за 2 часа."></textarea>
+                  </div>
+                  <div style="grid-column: span 2; display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-secondary" id="btnCancelTask">Сбросить</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveTask">Сохранить задачу</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Homework 4 -->
+            <div class="card homework-panel">
+              <div class="card-title">
+                <span class="icon">📝</span> Домашнее задание (Дни 7-8)
+              </div>
+              <p class="description">
+                <strong>Задание:</strong> В банках и крупных сетях часто решение принимает не администратор, а завхоз или главный инженер. Опишите схему обхода «привратника» (администратора) на ресепшене. Какую фразу нужно сказать, чтобы вас переключили на инженера?
+              </p>
+              <div class="homework-status-badge" id="hwStatus-4">
+                <span class="badge badge-blue">Не сдано</span>
+              </div>
+              <textarea class="textarea-homework" id="hwInput-4" placeholder="Введите ваш ответ здесь..."></textarea>
+              <button class="btn btn-primary" id="btnSubmit-4">Отправить на проверку</button>
+            </div>
+          </section>
+
+          <!-- ================= LEVEL 5 ================= -->
+          <section class="level-section" id="level-5">
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📘</span> Теория: Аналитика, Дожим и Работа с дефектным актом
+              </div>
+              <p class="description">
+                После проведения диагностики инженер присылает <strong>Дефектный Акт</strong>. Ваша задача — связаться с клиентом и презентовать этот отчет. Мы продаем не ремонт, мы продаем <em>безопасность бизнеса</em>.
+              </p>
+              <div class="callout callout-info">
+                <strong>Скрипт дожима:</strong> «[Имя], наш инженер подготовил технический отчет по вашему кондиционеру. Там есть критические моменты, которые могут привести к поломке компрессора в ближайшие дни (фреон ушел, фильтры забиты). Посмотрите файл. Когда вам удобно обсудить смету на устранение?»
+              </div>
+            </div>
+
+            <!-- WhatsApp Message Formulator -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">📱</span> Практика: Составление сообщения в WhatsApp
+              </div>
+              <p class="description">
+                Инженер прислал дефектную ведомость по кафе «Ромашка»: <strong>«Радиатор внешнего блока забит пухом на 90%. Компрессор работает на пределе, перегревается. Давление фреона ниже нормы. Если не промыть и не дозаправить, компрессор сгорит через неделю. Замена обойдется в 75 000 рублей.»</strong><br><br>
+                Сформулируйте убедительное сообщение для Ирины (управляющей), чтобы согласовать проведение платных работ.
+              </p>
+
+              <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label for="waMessageText">Текст сообщения в WhatsApp:</label>
+                <textarea id="waMessageText" style="height: 140px;" class="textarea-homework" placeholder="Ирина, добрый день! Наш инженер подготовил акт диагностики..."></textarea>
+              </div>
+              <button class="btn btn-primary" id="btnCheckWaMessage">Проверить сообщение</button>
+              <div id="waFeedback" class="quiz-feedback" style="margin-top: 1rem;"></div>
+            </div>
+
+            <!-- Final Comprehensive Quiz -->
+            <div class="card">
+              <div class="card-title">
+                <span class="icon">🎓</span> Финальный Экзамен
+              </div>
+              <p class="description">
+                Ответьте на вопросы итогового тестирования, чтобы завершить обучение.
+              </p>
+
+              <!-- Question 1 -->
+              <div class="quiz-question-block" style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">1. Какова основная цель холодного звонка по скрипту «Эксперт-Помощник»?</h4>
+                <div class="quiz-options" data-question="q1">
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>Продать годовой контракт на обслуживание кондиционеров</span>
+                  </div>
+                  <div class="quiz-option" data-correct="true">
+                    <div class="option-dot"></div>
+                    <span>Согласовать бесплатный выезд инженера на диагностику</span>
+                  </div>
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>Выяснить, сколько кондиционеров установлено в заведении</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Question 2 -->
+              <div class="quiz-question-block" style="margin-bottom: 2rem;">
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">2. В какой момент менеджер обязан ставить задачу в AMO CRM по регламенту диагностики?</h4>
+                <div class="quiz-options" data-question="q2">
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>Только после того, как инженер вернется с выезда и привезет акт</span>
+                  </div>
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>В конце рабочей недели при сдаче отчета куратору</span>
+                  </div>
+                  <div class="quiz-option" data-correct="true">
+                    <div class="option-dot"></div>
+                    <span>Сразу после согласования встречи (поставить задачу за 2 часа до приезда и задачу на контроль результата)</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Question 3 -->
+              <div class="quiz-question-block">
+                <h4 style="font-size: 0.95rem; margin-bottom: 0.75rem;">3. Что делать, если клиент говорит: «Нам это неактуально»?</h4>
+                <div class="quiz-options" data-question="q3">
+                  <div class="quiz-option" data-correct="true">
+                    <div class="option-dot"></div>
+                    <span>Присоединиться («Понимаю, сейчас лето, нагрузка высокая...») и предложить прислать чек-лист самопроверки в WhatsApp</span>
+                  </div>
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>Попрощаться и перевести сделку в этап «Закрыто и не реализовано»</span>
+                  </div>
+                  <div class="quiz-option" data-correct="false">
+                    <div class="option-dot"></div>
+                    <span>Настаивать на встрече, объясняя клиенту, что он не понимает рисков</span>
+                  </div>
+                </div>
+              </div>
+              
+              <button class="btn btn-success" id="btnSubmitExam" style="margin-top: 1.5rem;">Сдать экзамен</button>
+              <div id="examFeedback" class="quiz-feedback" style="margin-top: 1rem;"></div>
+            </div>
+
+            <!-- Homework 5 -->
+            <div class="card homework-panel">
+              <div class="card-title">
+                <span class="icon">📝</span> Домашнее задание (Дни 9-10)
+              </div>
+              <p class="description">
+                <strong>Задание:</strong> Проанализируйте воронку продаж в AMO CRM. На каком этапе менеджеры чаще всего теряют клиентов (где возникает «бутылочное горлышко») и как вы планируете удерживать клиентов на этом этапе?
+              </p>
+              <div class="homework-status-badge" id="hwStatus-5">
+                <span class="badge badge-blue">Не сдано</span>
+              </div>
+              <textarea class="textarea-homework" id="hwInput-5" placeholder="Введите ваш ответ здесь..."></textarea>
+              <button class="btn btn-primary" id="btnSubmit-5">Отправить на проверку</button>
+            </div>
+          </section>
+
+        </div>
+      </div>
+
+      <!-- ================= ADMIN VIEW (SUPERVISOR PANEL) ================= -->
+      <div id="adminView" style="display: none; flex-direction: column; width: 100%;">
+        <header class="main-header">
+          <div class="header-title-sec">
+            <h2>💼 Панель Управления Куратора</h2>
+            <p>Контроль прогресса и домашних заданий менеджеров</p>
+          </div>
+          <div style="display: flex; gap: 0.75rem;">
+            <button class="btn btn-secondary" id="btnAdminExport">Выгрузить JSON отчет</button>
+            <button class="btn btn-secondary" id="btnAdminReset">Сбросить всю базу данных</button>
+          </div>
+        </header>
+
+        <div class="admin-grid-layout">
+          <!-- User list sidebar -->
+          <div class="admin-users-list">
+            <h3 class="section-header" style="margin-top: 0; padding-left: 0.5rem; display: flex; justify-content: space-between; align-items: center;">
+              <span>Студенты</span>
+              <span class="badge badge-cyan" id="adminUsersCount">0</span>
+            </h3>
+            <div class="users-scroll-container" id="adminUsersContainer">
+              <!-- Render student items here -->
+            </div>
+          </div>
+
+          <!-- Homework details viewport -->
+          <div class="admin-details-viewport">
+            <div class="card" id="adminDetailsCard" style="height: 100%; min-height: 500px;">
+              <!-- Student summary details render here -->
+              <div style="color: var(--text-muted); text-align: center; padding-top: 8rem;" id="adminDetailsPlaceholder">
+                <span style="font-size: 3rem; display: block; margin-bottom: 1rem;">👤</span>
+                Выберите менеджера из списка слева, чтобы посмотреть его прогресс и ответы на домашние задания.
+              </div>
+              <div id="adminDetailsContent" style="display: none;">
+                <div class="admin-details-header">
+                  <h3 id="adminSelectedUserEmail" style="font-family: var(--font-display); font-size: 1.4rem; color: var(--accent-cyan);">manager@test.com</h3>
+                  <div style="display: flex; gap: 1rem; align-items: center; margin-top: 0.25rem;">
+                    <span id="adminSelectedUserProgress" class="progress-text">Progress: 0%</span>
+                  </div>
+                </div>
+
+                <div class="admin-hw-timeline" id="adminHwTimeline">
+                  <!-- Level answers render here dynamically -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
