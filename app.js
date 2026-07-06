@@ -1022,7 +1022,7 @@ document.getElementById('btnAdminReset').addEventListener('click', () => {
 
 // ================= ENTERPRISE PROPOSAL GENERATOR & KNOWLEDGE BASE LOGIC =================
 
-// Asynchronous font loading for Cyrillic support in jsPDF (Regular & Bold)
+// Asynchronous font loading for Cyrillic support in jsPDF (Regular & Bold/Medium)
 let robotoRegular = '';
 let robotoBold = '';
 
@@ -1030,8 +1030,13 @@ async function initPdfFonts() {
   try {
     const [resReg, resBold] = await Promise.all([
       fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf'),
-      fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Bold.ttf')
+      fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Medium.ttf')
     ]);
+
+    if (!resReg.ok || !resBold.ok) {
+      throw new Error(`Failed to load fonts from CDN. Regular: ${resReg.status}, Bold/Medium: ${resBold.status}`);
+    }
+
     const [bufReg, bufBold] = await Promise.all([
       resReg.arrayBuffer(),
       resBold.arrayBuffer()
@@ -1045,7 +1050,7 @@ async function initPdfFonts() {
     }
     robotoRegular = window.btoa(binaryReg);
 
-    // Bold
+    // Bold/Medium
     let binaryBold = '';
     const bytesBold = new Uint8Array(bufBold);
     for (let i = 0; i < bytesBold.byteLength; i++) {
@@ -1060,23 +1065,37 @@ async function initPdfFonts() {
 }
 initPdfFonts();
 
-// Asynchronous QR code preloader
+// Asynchronous QR code preloader using Canvas to guarantee safe JPEG base64 format (bypasses browser file protocol restrictions)
 let qrCodeBase64 = '';
 async function loadQrCodeImage() {
-  try {
-    const res = await fetch('./qr-code.png');
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        qrCodeBase64 = reader.result;
-        resolve();
-      };
-      reader.readAsDataURL(blob);
-    });
-  } catch (e) {
-    console.error("Failed to load QR code image: ", e);
-  }
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        
+        // Fill canvas with white background (JPEGs don't support transparency)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        
+        qrCodeBase64 = canvas.toDataURL('image/jpeg', 1.0);
+        console.log("QR Code successfully loaded and converted to JPEG Base64.");
+      } catch (err) {
+        console.error("Failed to convert QR image to JPEG canvas: ", err);
+      }
+      resolve();
+    };
+    img.onerror = (e) => {
+      console.error("Failed to load local qr-code.png file: ", e);
+      resolve();
+    };
+    img.src = './qr-code.png';
+  });
 }
 loadQrCodeImage();
 
@@ -1097,7 +1116,13 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
     doc.addFileToVFS('Roboto-Bold.ttf', robotoBold);
     doc.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
   }
-  doc.setFont('Roboto', 'normal');
+
+  // Set font. Fallback to helvetica if Roboto did not load.
+  if (robotoRegular) {
+    doc.setFont('Roboto', 'normal');
+  } else {
+    doc.setFont('helvetica', 'normal');
+  }
 
   // Draw corporate header block
   doc.setFillColor(10, 10, 12);
@@ -1109,7 +1134,7 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // Header Title
   doc.setTextColor(255, 255, 255);
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.setFontSize(22);
   doc.text('КЛИМАТ СЕВЕРА', 15, 20);
   
@@ -1118,20 +1143,20 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   doc.text('АКАДЕМИЯ ПРОФЕССИОНАЛЬНОГО КЛИМАТИЧЕСКОГО СЕРВИСА', 15, 28);
   
   doc.setTextColor(150, 150, 150);
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.setFontSize(8);
   doc.text('Тел: +7 (999) 123-45-67 | Email: service@klimat-severa.ru', 15, 35);
 
   // Main proposal header title
   doc.setTextColor(10, 10, 12);
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.setFontSize(15);
   doc.text('Климат Севера — эксперты в критических системах', 15, 60);
 
   // Document meta
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.text(`Дата составления: ${new Date().toLocaleDateString('ru-RU')}`, 15, 67);
 
   // Decorative horizontal divider line
@@ -1147,20 +1172,20 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   const paragraphOffer = `Наша компания «Климат Севера» берет на себя заботу о климате в заведении «${establishmentName}».`;
   const paragraphDetails = `Предлагаем бесплатную диагностику по техническому чек-листу от ${new Date(dateString).toLocaleDateString('ru-RU')}.`;
 
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.text(paragraphGreeting, 15, 80);
 
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.text(paragraphOffer, 15, 87);
   doc.text(paragraphDetails, 15, 93);
 
   // Trust Block Section
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.setFontSize(12);
   doc.setTextColor(10, 10, 12);
   doc.text('НАШЕ ДОВЕРИЕ И ОПЫТ:', 15, 104);
 
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(60, 60, 60);
   
@@ -1173,11 +1198,11 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // 1. Factory
   if (objectType === 'factory') {
-    doc.setFont('Roboto', 'bold');
+    if (robotoBold) doc.setFont('Roboto', 'bold');
     doc.setTextColor(10, 10, 12);
     doc.text('• Сахарный завод (непрерывное производство) — ВАШ СЕГМЕНТ ОБОРУДОВАНИЯ', 15, y);
   } else {
-    doc.setFont('Roboto', 'normal');
+    if (robotoRegular) doc.setFont('Roboto', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.text('• Сахарный завод (непрерывное производство)', 15, y);
   }
@@ -1185,11 +1210,11 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // 2. Bank
   if (objectType === 'bank') {
-    doc.setFont('Roboto', 'bold');
+    if (robotoBold) doc.setFont('Roboto', 'bold');
     doc.setTextColor(10, 10, 12);
     doc.text('• Серверные банков (прецизионное охлаждение) — ВАШ СЕГМЕНТ ОБОРУДОВАНИЯ', 15, y);
   } else {
-    doc.setFont('Roboto', 'normal');
+    if (robotoRegular) doc.setFont('Roboto', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.text('• Серверные банков (прецизионное охлаждение)', 15, y);
   }
@@ -1197,11 +1222,11 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // 3. Office
   if (objectType === 'office') {
-    doc.setFont('Roboto', 'bold');
+    if (robotoBold) doc.setFont('Roboto', 'bold');
     doc.setTextColor(10, 10, 12);
     doc.text('• N-Group (офисные центры) — ВАШ СЕГМЕНТ ОБОРУДОВАНИЯ', 15, y);
   } else {
-    doc.setFont('Roboto', 'normal');
+    if (robotoRegular) doc.setFont('Roboto', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.text('• N-Group (офисные центры)', 15, y);
   }
@@ -1209,24 +1234,24 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // 4. Cafe
   if (objectType === 'cafe') {
-    doc.setFont('Roboto', 'bold');
+    if (robotoBold) doc.setFont('Roboto', 'bold');
     doc.setTextColor(10, 10, 12);
     doc.text('• Сеть кафе «Хачапурная» — ВАШ СЕГМЕНТ ОБОРУДОВАНИЯ', 15, y);
   } else {
-    doc.setFont('Roboto', 'normal');
+    if (robotoRegular) doc.setFont('Roboto', 'normal');
     doc.setTextColor(80, 80, 80);
     doc.text('• Сеть кафе «Хачапурная»', 15, y);
   }
   y += 10;
 
   // Risk block
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.setFontSize(11);
   doc.setTextColor(190, 40, 40); // Alert red
   doc.text('АНАЛИЗ КРИТИЧЕСКИХ РИСКОВ:', 15, y);
   y += 5;
 
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.setFontSize(9.5);
   doc.setTextColor(80, 80, 80);
   const riskParagraph = "Мы часто сталкиваемся с тем, что экономия на диагностике приводит к замене компрессора (стоимость от 40 000 сом). Наша диагностика позволяет выявить проблему на ранней стадии и избежать критических затрат.";
@@ -1235,7 +1260,7 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   y += splitRisk.length * 5.5 + 4;
 
   // Call to action
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.setFontSize(10.5);
   doc.setTextColor(10, 10, 12);
   const callParagraph = "Готовы подтвердить время визита? Просто ответьте на это сообщение в WhatsApp или отсканируйте QR-код ниже.";
@@ -1246,14 +1271,14 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   // Clickable link
   doc.setTextColor(0, 80, 220);
   doc.setFontSize(10);
-  doc.setFont('Roboto', 'bold');
+  if (robotoBold) doc.setFont('Roboto', 'bold');
   doc.text('Перейти на наш сайт: https://klimat-severa.com/', 15, y);
   doc.link(15, y - 4, 100, 6, { url: 'https://klimat-severa.com/' });
 
   // Signatures
   y += 15;
   doc.setTextColor(33, 37, 41);
-  doc.setFont('Roboto', 'normal');
+  if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.text('От лица исполнителя:', 15, y);
   
   y += 12;
@@ -1274,7 +1299,7 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
 
   // Render QR Code Image bottom right
   if (qrCodeBase64) {
-    doc.addImage(qrCodeBase64, 'PNG', 145, y - 30, 45, 45);
+    doc.addImage(qrCodeBase64, 'JPEG', 145, y - 30, 45, 45);
   }
 
   // Footer bar
