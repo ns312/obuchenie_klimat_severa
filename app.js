@@ -1019,3 +1019,295 @@ document.getElementById('btnAdminReset').addEventListener('click', () => {
     alert('База данных успешно сброшена.');
   }
 });
+
+// ================= ENTERPRISE PROPOSAL GENERATOR & KNOWLEDGE BASE LOGIC =================
+
+// Asynchronous font loading for Cyrillic support in jsPDF
+let robotoBase64 = '';
+async function initPdfFont() {
+  try {
+    const res = await fetch('https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.66/fonts/Roboto/Roboto-Regular.ttf');
+    const arrayBuffer = await res.arrayBuffer();
+    
+    // Convert arrayBuffer to Base64
+    let binary = '';
+    const bytes = new Uint8Array(arrayBuffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    robotoBase64 = window.btoa(binary);
+    console.log("PDF Cyrillic font loaded successfully.");
+  } catch (e) {
+    console.error("Failed to load PDF Cyrillic font from CDN: ", e);
+  }
+}
+initPdfFont();
+
+// PDF Generation
+async function generateProposalPdf(clientName, establishmentName, dateString, diagnosisType) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  if (robotoBase64) {
+    doc.addFileToVFS('Roboto-Regular.ttf', robotoBase64);
+    doc.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    doc.setFont('Roboto');
+  }
+
+  // Draw corporate header block
+  doc.setFillColor(10, 10, 12);
+  doc.rect(0, 0, 210, 45, 'F');
+
+  // Draw cyan accent stripe below header
+  doc.setFillColor(0, 240, 255);
+  doc.rect(0, 45, 210, 2, 'F');
+
+  // Header Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(22);
+  doc.text('КЛИМАТ СЕВЕРА', 15, 20);
+  
+  doc.setFontSize(10);
+  doc.setTextColor(0, 240, 255);
+  doc.text('АКАДЕМИЯ ПРОФЕССИОНАЛЬНОГО КЛИМАТИЧЕСКОГО СЕРВИСА', 15, 28);
+  
+  doc.setTextColor(150, 150, 150);
+  doc.setFontSize(8);
+  doc.text('Тел: +7 (999) 123-45-67 | Email: service@klimat-severa.ru', 15, 35);
+
+  // Main proposal body
+  doc.setTextColor(33, 37, 41);
+  doc.setFontSize(16);
+  doc.text('КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ', 15, 65);
+  
+  // Decorative line
+  doc.setDrawColor(0, 240, 255);
+  doc.setLineWidth(0.5);
+  doc.line(15, 68, 100, 68);
+
+  // Document meta
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Дата составления: ${new Date().toLocaleDateString('ru-RU')}`, 15, 75);
+  
+  // Content formulation
+  doc.setFontSize(11);
+  doc.setTextColor(40, 40, 40);
+  
+  let diagnosisText = "";
+  if (diagnosisType === 'leak') {
+    diagnosisText = "замерам давления фреона и аудиту перегрева компрессора";
+  } else if (diagnosisType === 'grease') {
+    diagnosisText = "комплексному обследованию вытяжных воздуховодов на предмет жировых отложений";
+  } else {
+    diagnosisText = "диагностике и замеру пусковых токов конденсаторов внешних блоков";
+  }
+
+  const paragraph1 = `Уважаемый(ая) ${clientName},`;
+  const paragraph2 = `Наша компания «Климат Севера» берет на себя заботу о климате и стабильной работе оборудования в заведении «${establishmentName}».`;
+  const paragraph3 = `На основании предварительного согласования предлагаем провести бесплатную диагностику по техническому чек-листу от ${new Date(dateString).toLocaleDateString('ru-RU')}.`;
+  const paragraph4 = `В рамках аудита наш сертифицированный инженер проведет работы по ${diagnosisText}. По окончании проверки вам будет выдан официальный Дефектный Акт государственного образца с фиксацией параметров работы системы.`;
+  const paragraph5 = `Это предложение действительно в течение 30 календарных дней с момента отправки.`;
+
+  doc.text(paragraph1, 15, 88);
+  
+  let y = 96;
+  const splitParagraph2 = doc.splitTextToSize(paragraph2, 180);
+  doc.text(splitParagraph2, 15, y);
+  y += splitParagraph2.length * 6;
+
+  const splitParagraph3 = doc.splitTextToSize(paragraph3, 180);
+  doc.text(splitParagraph3, 15, y);
+  y += splitParagraph3.length * 6;
+
+  const splitParagraph4 = doc.splitTextToSize(paragraph4, 180);
+  doc.text(splitParagraph4, 15, y);
+  y += splitParagraph4.length * 6 + 4;
+
+  const splitParagraph5 = doc.splitTextToSize(paragraph5, 180);
+  doc.text(splitParagraph5, 15, y);
+
+  // Work Scope Details Table
+  y += 18;
+  doc.setFillColor(245, 247, 250);
+  doc.rect(15, y, 180, 28, 'F');
+  doc.setDrawColor(210, 214, 220);
+  doc.rect(15, y, 180, 28, 'D');
+
+  doc.setFontSize(10);
+  doc.setTextColor(33, 37, 41);
+  doc.text('В РАМКАХ БЕСПЛАТНОГО ВЫЕЗДА ВКЛЮЧЕНО:', 20, y + 6);
+  
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text('• Инструментальный замер параметров климатического оборудования', 20, y + 12);
+  doc.text('• Составление официальной дефектной ведомости специалистом СРО', 20, y + 17);
+  doc.text('• Рекомендации по оптимизации энергопотребления систем кондиционирования', 20, y + 22);
+
+  // Signatures
+  y += 50;
+  doc.setFontSize(10);
+  doc.setTextColor(33, 37, 41);
+  doc.text('От лица исполнителя:', 15, y);
+  doc.text('От лица заказчика:', 120, y);
+
+  y += 15;
+  doc.setDrawColor(150, 150, 150);
+  doc.line(15, y, 75, y);
+  doc.line(120, y, 180, y);
+
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text('Куратор / Руководитель направления', 15, y + 4);
+  doc.text('ФИО / М.П. заведения', 120, y + 4);
+
+  // Blue oval stamp
+  doc.setDrawColor(0, 50, 200);
+  doc.setLineWidth(0.75);
+  doc.ellipse(45, y - 5, 18, 10, 'D');
+  doc.setFontSize(7);
+  doc.setTextColor(0, 50, 200);
+  doc.text('«КЛИМАТ СЕВЕРА»', 33, y - 7);
+  doc.text('ДЛЯ ДОКУМЕНТОВ', 33, y - 3);
+
+  // Bottom footer accent line
+  doc.setFillColor(10, 10, 12);
+  doc.rect(0, 285, 210, 12, 'F');
+  doc.setFillColor(0, 240, 255);
+  doc.rect(0, 283, 210, 2, 'F');
+
+  // Trigger download
+  const sanitizedEst = establishmentName.replace(/[^a-zA-Zа-яА-Я0-9]/g, '_');
+  doc.save(`KP_Klimat_Severa_${sanitizedEst}.pdf`);
+}
+
+// KP Generator form submit handler
+const kpGeneratorForm = document.getElementById('kpGeneratorForm');
+if (kpGeneratorForm) {
+  kpGeneratorForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const clientName = document.getElementById('kpClientName').value.trim();
+    const estName = document.getElementById('kpEstName').value.trim();
+    const diagDate = document.getElementById('kpDiagDate').value;
+    const diagType = document.getElementById('kpDiagnosticDetails').value;
+
+    if (!clientName || !estName || !diagDate) {
+      alert("Пожалуйста, заполните все обязательные поля!");
+      return;
+    }
+
+    const btn = document.getElementById('btnGeneratePdf');
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳ Генерация документа...</span>';
+
+    try {
+      await generateProposalPdf(clientName, estName, diagDate, diagType);
+    } catch (err) {
+      console.error(err);
+      alert("Ошибка генерации PDF! Пожалуйста, повторите попытку.");
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<span>📄 Сформировать и скачать КП (PDF)</span>';
+    }
+  });
+}
+
+// Sidebar switches for custom tools and knowledge base sections
+const navKpBtn = document.getElementById('navKpBtn');
+const navVideosBtn = document.getElementById('navVideosBtn');
+
+if (navKpBtn) {
+  navKpBtn.addEventListener('click', () => {
+    // Clear other actives
+    levelNavItems.forEach(item => item.classList.remove('active'));
+    if (navVideosBtn) navVideosBtn.classList.remove('active');
+    navKpBtn.classList.add('active');
+
+    // Switch section display
+    document.querySelectorAll('.level-section').forEach(sec => sec.classList.remove('active'));
+    const section = document.getElementById('section-kp');
+    if (section) section.classList.add('active');
+
+    // Headers
+    document.getElementById('headerLevelTitle').innerText = 'Генератор Коммерческих Предложений';
+    document.getElementById('headerLevelDays').innerText = 'Инструмент для автоматической генерации КП';
+  });
+}
+
+if (navVideosBtn) {
+  navVideosBtn.addEventListener('click', () => {
+    // Clear other actives
+    levelNavItems.forEach(item => item.classList.remove('active'));
+    if (navKpBtn) navKpBtn.classList.remove('active');
+    navVideosBtn.classList.add('active');
+
+    // Switch section display
+    document.querySelectorAll('.level-section').forEach(sec => sec.classList.remove('active'));
+    const section = document.getElementById('section-kb');
+    if (section) section.classList.add('active');
+
+    // Headers
+    document.getElementById('headerLevelTitle').innerText = 'База знаний: Видео-уроки';
+    document.getElementById('headerLevelDays').innerText = 'Видео-курсы по техникам продаж';
+  });
+}
+
+// Helper to remove custom section actives when level navigation items are clicked
+levelNavItems.forEach(item => {
+  item.addEventListener('click', () => {
+    if (navKpBtn) navKpBtn.classList.remove('active');
+    if (navVideosBtn) navVideosBtn.classList.remove('active');
+  });
+});
+
+// Video Gallery Tab switching
+const kbTabBtns = document.querySelectorAll('.kb-tab-btn');
+kbTabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Actives update
+    kbTabBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const tabName = btn.getAttribute('data-tab');
+    document.querySelectorAll('.kb-panel').forEach(p => p.classList.remove('active'));
+    
+    const panel = document.getElementById(`kb-tab-${tabName}`);
+    if (panel) panel.classList.add('active');
+  });
+});
+
+// YouTube embed offline/loading fallback check handler
+function checkYouTubeAccess() {
+  const iframes = document.querySelectorAll('.video-wrapper iframe');
+  iframes.forEach(iframe => {
+    const wrapper = iframe.parentElement;
+    let loaded = false;
+
+    iframe.onload = () => {
+      loaded = true;
+    };
+
+    // If iframe has not finished loading in 5 seconds, trigger the fallback block
+    setTimeout(() => {
+      if (!loaded) {
+        wrapper.innerHTML = `
+          <div class="video-fallback-msg">
+            <span style="font-size: 2rem; display: block; margin-bottom: 0.5rem;">⚠️</span>
+            <strong>Видео временно недоступно</strong>
+            <p style="font-size: 0.75rem; margin-top: 0.4rem; line-height: 1.4; color: var(--text-muted);">
+              Пожалуйста, проверьте подключение к интернету или доступность сервиса YouTube.<br>
+              Ссылка на видео: <a href="${iframe.src}" target="_blank" style="color: var(--accent-cyan); text-decoration: underline;">Смотреть напрямую</a>
+            </p>
+          </div>
+        `;
+      }
+    }, 5000);
+  });
+}
+window.addEventListener('load', checkYouTubeAccess);
+
