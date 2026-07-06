@@ -1073,7 +1073,8 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   doc.setTextColor(150, 150, 150);
   if (robotoRegular) doc.setFont('Roboto', 'normal');
   doc.setFontSize(8);
-  doc.text('Тел: +7 (999) 123-45-67 | Email: service@klimat-severa.ru', 15, 35);
+  doc.text('Тел: +996 (501) 58-97-96', 15, 35);
+  doc.link(15, 31, 40, 5, { url: 'tel:+996501589796' });
 
   // Main proposal header title
   doc.setTextColor(10, 10, 12);
@@ -1214,7 +1215,7 @@ async function generateProposalPdf(clientName, establishmentName, dateString, ob
   doc.line(15, y, 75, y);
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
-  doc.text('Куратор / Руководитель направления', 15, y + 4);
+  doc.text('директор ИП Сыдыков Нурсултан', 15, y + 4);
 
   // Blue seal stamp overlay
   doc.setDrawColor(0, 50, 200);
