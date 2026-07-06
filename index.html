@@ -43,9 +43,19 @@
 
   <!-- ================= APP CONTAINER ================= -->
   <div class="app-container">
+    <!-- Mobile Header Bar -->
+    <div class="mobile-header-bar">
+      <button class="hamburger-btn" id="hamburgerMenuBtn" aria-label="Открыть меню">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="mobile-brand-title">Климат Севера</div>
+    </div>
     
     <!-- Sidebar Navigation -->
     <aside class="sidebar" id="appSidebar">
+      <button class="sidebar-close-btn" id="sidebarCloseBtn" aria-label="Закрыть меню">&times;</button>
       <div class="brand-container">
         <div class="brand-logo">КС</div>
         <div class="brand-info">
@@ -134,6 +144,9 @@
         </button>
       </div>
     </aside>
+
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Main Content Area -->
     <main class="main-content">

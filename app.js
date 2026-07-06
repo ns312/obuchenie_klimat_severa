@@ -1366,3 +1366,37 @@ function checkYouTubeAccess() {
 }
 window.addEventListener('load', checkYouTubeAccess);
 
+// ================= MOBILE HAMBURGER MENU TOGGLE LOGIC =================
+const hamburgerMenuBtn = document.getElementById('hamburgerMenuBtn');
+const sidebarCloseBtn = document.getElementById('sidebarCloseBtn');
+const sidebarOverlay = document.getElementById('sidebarOverlay');
+const appSidebar = document.getElementById('appSidebar');
+
+function closeMobileSidebar() {
+  if (appSidebar) appSidebar.classList.remove('open');
+  if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+}
+
+function openMobileSidebar() {
+  if (appSidebar) appSidebar.classList.add('open');
+  if (sidebarOverlay) sidebarOverlay.classList.add('active');
+}
+
+if (hamburgerMenuBtn) {
+  hamburgerMenuBtn.addEventListener('click', openMobileSidebar);
+}
+
+if (sidebarCloseBtn) {
+  sidebarCloseBtn.addEventListener('click', closeMobileSidebar);
+}
+
+if (sidebarOverlay) {
+  sidebarOverlay.addEventListener('click', closeMobileSidebar);
+}
+
+// Automatically close mobile sidebar when any menu item is clicked
+const sidebarNavItems = document.querySelectorAll('.level-nav-item, .service-nav-item');
+sidebarNavItems.forEach(item => {
+  item.addEventListener('click', closeMobileSidebar);
+});
+

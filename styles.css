@@ -1570,3 +1570,177 @@ ul.theory-list li::before {
   font-size: 0.85rem;
 }
 
+/* ================= MOBILE STYLES & RESPONSIVENESS ================= */
+
+/* Hide mobile header bar by default on desktop */
+.mobile-header-bar {
+  display: none;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 1.25rem;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 0.5rem;
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background-color: var(--text-primary);
+  border-radius: 2px;
+  transition: var(--transition-fast);
+}
+
+.mobile-brand-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Close button inside sidebar (hidden on desktop) */
+.sidebar-close-btn {
+  display: none;
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 2.25rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.sidebar-close-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Sidebar Backdrop Overlay (hidden by default) */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 1400;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  pointer-events: none;
+}
+
+.sidebar-overlay.active {
+  display: block;
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Responsive media queries */
+@media (max-width: 1024px) {
+  .app-container {
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    display: block; /* Stacks vertically */
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .mobile-header-bar {
+    display: flex; /* Show bar on mobile */
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 1500;
+    box-shadow: 20px 0 40px rgba(0, 0, 0, 0.6);
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-close-btn {
+    display: block; /* Show close button on mobile sidebar */
+  }
+
+  .main-content {
+    padding: 1.5rem 1rem;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Form columns stacked on mobile */
+  #kpGeneratorForm {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+  
+  .scheduler-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  .main-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .progress-section {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .progress-bar-container {
+    width: 70%;
+  }
+
+  .card {
+    padding: 1.5rem 1.25rem;
+  }
+
+  /* Admin Grid layout adjustments */
+  .admin-grid-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .admin-users-list {
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+    max-height: 300px;
+  }
+
+  .admin-details-viewport {
+    padding: 1.5rem;
+  }
+}
