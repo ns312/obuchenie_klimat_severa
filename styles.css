@@ -134,7 +134,7 @@ body {
   flex: 1;
 }
 
-.level-nav-item {
+.level-nav-item, .service-nav-item {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -150,13 +150,13 @@ body {
   width: 100%;
 }
 
-.level-nav-item:hover:not(.locked) {
+.level-nav-item:hover:not(.locked), .service-nav-item:hover {
   background: var(--bg-glass-hover);
   color: var(--text-primary);
   border-color: rgba(255, 255, 255, 0.05);
 }
 
-.level-nav-item.active {
+.level-nav-item.active, .service-nav-item.active {
   background: var(--bg-glass-hover);
   border-color: var(--border-color-active);
   color: var(--text-primary);
