@@ -766,16 +766,17 @@
                   <input type="date" id="kpDiagDate" required>
                 </div>
                 <div class="form-group">
-                  <label for="kpDiagnosticDetails">Результаты диагностики (кратко)</label>
-                  <select id="kpDiagnosticDetails">
-                    <option value="leak">Критическая утечка фреона (перегрев компрессора)</option>
-                    <option value="grease">Загрязнение жиром вытяжной вентиляции (пожароопасность)</option>
-                    <option value="general">Необходима плановая замена пусковых конденсаторов</option>
+                  <label for="kpObjectType">Тип объекта</label>
+                  <select id="kpObjectType">
+                    <option value="cafe">Кафе / Ресторан</option>
+                    <option value="bank">Банк / Серверные</option>
+                    <option value="factory">Завод / Производство</option>
+                    <option value="office">Офис / Бизнес-центр</option>
                   </select>
                 </div>
                 <div style="grid-column: span 2; display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 0.5rem;">
                   <button type="submit" class="btn btn-primary" id="btnGeneratePdf">
-                    <span>📄 Сформировать и скачать КП (PDF)</span>
+                    <span>📄 Сформировать и скачать КП</span>
                   </button>
                 </div>
               </form>
